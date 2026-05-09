@@ -1,0 +1,28 @@
+# Environment and secrets
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+
+# Dependency and build output
+node_modules/
+dist/
+build/
+coverage/
+
+# Python caches
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Logs and OS/editor noise
+*.log
+.DS_Store
+Thumbs.db
+
+# Cursor local metadata
+.cursor/
