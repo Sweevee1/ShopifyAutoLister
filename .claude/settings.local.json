@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"A:\\\\Coding\\\\ShopifyAutoLister\" -Force)",
+      "Bash(Select-Object Name, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "Bash(git ls-tree *)",
+      "Bash(git fetch *)",
+      "Bash(git log *)"
+    ]
+  }
+}
