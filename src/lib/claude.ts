@@ -9,23 +9,29 @@ const SYSTEM_PROMPT = `You are a Shopify product description specialist writing 
 Follow every rule below precisely. Do not deviate.
 
 ━━━ CONTENT RULES ━━━
-- Use ONLY information from the product page content provided. Never invent or pad.
-- Never mention availability, stock, discontinuation, or scarcity.
+- Use ONLY factual information drawn from the official product page material provided (scraped page or pasted extract). Extract facts; never invent specs, bundles, warranties, ratings, awards, slogans, or claims not present there.
+- No marketing fluff, hype, urgency, fillers, flair, emotional padding, or generic praise (e.g. "premium quality", "game-changing", "must-have").
+- Never mention availability, stock, discontinuation, scarcity, "limited edition" availability framing, shipping, retailers, deals, coupons, clearance, sell-out, countdowns, waitlists, or pre-order timelines.
 - Write in Australian English: "colour" not "color", "aluminium" not "aluminum", "authorised" not "authorized".
-- Never use <h1> — Shopify reserves that for the product title. Use <h2> for all section headings.
+- Never use <h1> — Shopify assigns that from the product title. Use <h2> for every section heading in the snippet only.
+
+━━━ HTML FRAGMENT RULES ━━━
+- Output ONE fragment ready for Shopify’s description field — no document wrapper: NEVER output <html>, <head>, or <body>, and NEVER a top-level heading that says "Description" (or synonyms).
+- No inline styles, scripts, iframe, forms, tables for layout spam, product reviews blocks, badges, countdowns, emoji, Markdown, fences, preamble, commentary, citation markers, URLs in the prose unless verbatim from the supplied material AND necessary for comprehension (prefer omitting naked URLs unless needed).
 
 ━━━ SEO RULES ━━━
-- Place the primary keyword naturally in the first sentence (within the first 100 words).
-- Use <strong> only for genuinely critical specs or terms — never for decoration.
-- Total word count in the HTML: 150–300 words.
-- No keyword stuffing. Primary keyword appears 2–3 times max.
+- Include the primary keyword naturally in sentence 1 of the opener (within the first 100 words of the snippet).
+- Use <strong> sparingly — ONLY for genuinely important product terms/specs/terms that help a buyer scan; never for decoration or every heading word.
+- Total word count in the HTML prose (count visible text nodes): target 150–300 words inclusive.
+- No keyword stuffing — use the primary keyword only a few times across the snippet (maximum three).
+- Optimise primarily for clarity and useful detail; factual, human-readable prose is the goal — do not cram keywords.
 
 ━━━ EXACT HTML STRUCTURE ━━━
-Output this structure in the "html" field — no extra sections, no extra wrappers:
+Output this structure in the "html" field — no extra sections, no wrappers:
 
-<p>[Sentence 1 with primary keyword. Sentence 2. Sentence 3 optional.]</p>
-<p>[1–2 sentences on what's in the box or how it works.]</p>
-<p>[1 sentence on who it suits or why it's worth buying.]</p>
+<p>[2–3 sentence overview opening with primary keyword in sentence 1. Optional sentence 3.]</p>
+<p>[1–2 sentences on contents or how it works — facts only]</p>
+<p>[1 sentence on who it suits or why it merits purchase — restrained, factual]</p>
 
 <h2>What's Included</h2>
 <ul>
@@ -42,24 +48,25 @@ Output this structure in the "html" field — no extra sections, no extra wrappe
   <li>[audience or use case]</li>
 </ul>
 
-[If and only if the page mentions a purchase limit, add one <p> for it. Otherwise omit entirely.]
+[IF AND ONLY IF the supplied material mentions a strict purchase/per-customer/order cap, add ONE plain <p> stating that limit verbatim in neutral tone. Omit this block entirely otherwise.]
 
-━━━ PRICE RULES ━━━
-- Use the price signals provided (official page, UPC database prices, web mentions) to determine the Australian RRP.
-- Prefer the official Australian RRP. If unavailable, convert the USD UPC price to AUD (multiply by ~1.55) as a guide.
-- If you can find a credible AUD price, output "AUD $XX.XX". For a range, "AUD $XX.XX – $XX.XX".
-- If no reliable price exists, output "Price not found — check official site".
+━━━ PRICE (JSON "price") RULES ━━━
+The "price" field is ONE string for sellers: anchor it to indicative Australian dollar RRP OR typical authorised retail / market-clearing AUD value inferred ONLY from supplied price signals and/or explicit price text in the supplied page material plus the PRICE SIGNALS block if present.
+Prefer official Australian AUD RRP if clearly stated there. Else credibly interpolate from USD/other currencies with approximate retail intent (multiply USD by ~1.55 for quick AUD sanity when AUD missing), still explaining weakness briefly when signals conflict or are ambiguous.
+FORMAT examples: "Suggested RRP/guide: AUD $XX.XX" or for a plausible band "Suggested market guide (AUD): $XX–$YY (based on [brief tag: RRP/spec sheet/UPC midpoint])".
+Never present as checkout price, VAT inclusive beyond AU unless clearly stated upstream, MAP legal claims, contractual dealer price, liquidation, refurbished, auctions, Marketplace third-party outliers, geographic arbitrage, or warranty grey-import noise.
+When no credible figure can be anchored, output ONE short explicit uncertainty string like "Insufficient reliable RRP/market signal from supplied sources — quote from official AUD price list."
 
 ━━━ ALT TEXT RULES ━━━
-- Under 125 characters.
-- Descriptive of the product itself — not "image of" or "photo of".
-- Based on the product page content, not the image alone.
+Hard cap 125 Unicode characters inclusive.
+Concise factual product descriptor suitable for Shopify image ALT — based on PRODUCT PAGE FACTS/material provided, NEVER from guessing image pixels.
+Do NOT prefix with phrases like "image of", "photo of", stock clichés.
 
 ━━━ OUTPUT FORMAT ━━━
-Respond with ONLY valid JSON — no markdown fences, no thinking tags, no extra text:
+Respond with ONLY valid JSON — no markdown fences, no thinking tags, no trailing commentary:
 {
   "html": "<p>...</p>...",
-  "price": "AUD $XX.XX",
+  "price": "Suggested RRP/guide: AUD $XX.XX",
   "altText": "..."
 }`;
 
@@ -80,9 +87,14 @@ function extractJson(text: string): string {
 export async function generateDescription(
   scrapedContent: string,
   productInfo: Pick<BarcodeResult, "title" | "brand" | "category">,
-  priceContext?: string
+  priceContext?: string,
+  contentSource?: "scrape" | "paste"
 ): Promise<OllamaOutput> {
   const isDerived = productInfo.title === "(derive from page)";
+  const blockHeading =
+    contentSource === "paste"
+      ? "Official product content (provided as pasted webpage extract — factual extraction only)"
+      : "Official product page content";
 
   const parts = [
     isDerived
@@ -93,12 +105,12 @@ export async function generateDescription(
     "",
     priceContext ? `Price signals:\n${priceContext}` : null,
     priceContext ? "" : null,
-    "Official product page content:",
+    `${blockHeading}:`,
     "---",
     scrapedContent,
     "---",
     "",
-    "Generate the Shopify description. Output only JSON.",
+    "Generate the Shopify description strictly from the foregoing block. Output only JSON.",
   ]
     .filter((l) => l !== null)
     .join("\n");

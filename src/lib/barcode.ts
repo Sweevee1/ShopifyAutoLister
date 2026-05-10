@@ -44,7 +44,7 @@ async function tryUpcItemDb(barcode: string): Promise<BarcodeResult> {
   } catch (err: unknown) {
     if (axios.isAxiosError(err) && err.response?.status === 429) {
       throw new BarcodeRateLimitError(
-        "UPC lookup rate limit reached (100/day). Provide a URL instead."
+        "UPC lookup rate limit reached (100/day). Provide an official product page URL or pasted page HTML instead."
       );
     }
     throw err;

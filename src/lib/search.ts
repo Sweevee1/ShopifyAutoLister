@@ -58,7 +58,7 @@ export async function searchForOfficialPage(
 
   if (!apiKey) {
     throw new SearchFailedError(
-      "No search API configured. Paste the official product page URL below.",
+      "No search API configured. Could not find an official product page automatically.",
       productName,
       brand
     );
@@ -76,7 +76,7 @@ export async function searchForOfficialPage(
     results = res.results ?? [];
   } catch (err: unknown) {
     throw new SearchFailedError(
-      `Search failed: ${err instanceof Error ? err.message : String(err)}. Paste the official product page URL below.`,
+      `Search failed: ${err instanceof Error ? err.message : String(err)}. Could not find an official product page automatically.`,
       productName,
       brand
     );
@@ -84,7 +84,7 @@ export async function searchForOfficialPage(
 
   if (results.length === 0) {
     throw new SearchFailedError(
-      `No results found for "${query}". Paste the official product page URL below.`,
+      `No results found for "${query}". Could not find an official product page automatically.`,
       productName,
       brand
     );

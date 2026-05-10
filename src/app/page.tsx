@@ -16,7 +16,7 @@ type AppState =
   | { phase: "success"; data: LookupResponse }
   | { phase: "error"; data: LookupError; attemptedUrl?: string };
 
-function CopyButton({ text }: { text: string }) {
+function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -27,10 +27,11 @@ function CopyButton({ text }: { text: string }) {
 
   return (
     <button
+      type="button"
       onClick={handleCopy}
       className="text-xs px-2 py-1 rounded bg-gray-200 hover:bg-gray-300 text-gray-700 transition-colors"
     >
-      {copied ? "Copied!" : "Copy"}
+      {copied ? "Copied!" : label}
     </button>
   );
 }
@@ -72,20 +73,31 @@ function StepIndicator({ stepIndex }: { stepIndex: number }) {
   );
 }
 
-const ERROR_CODES_NEEDING_URL = new Set([
+/** Errors where the user should try official URL or pasted HTML fallback */
+const ERROR_CODES_NEEDING_FALLBACK = new Set([
   "BARCODE_NOT_FOUND",
   "BARCODE_RATE_LIMIT",
   "PAGE_BLOCKED",
   "PAGE_EMPTY",
   "SEARCH_FAILED",
+  "NO_PRODUCT_URL",
+  "SCRAPE_ERROR",
 ]);
+
+const ERROR_CODES_FOCUS_PASTED_HTML = new Set(["PAGE_BLOCKED", "PAGE_EMPTY"]);
+
+function buildCopyPack(data: LookupResponse): string {
+  return `${data.html}\n---\nSuggested price: ${data.price}\nAlt text: ${data.altText}`;
+}
 
 export default function Home() {
   const [barcode, setBarcode] = useState("");
   const [manualUrl, setManualUrl] = useState("");
+  const [manualHtml, setManualHtml] = useState("");
   const [appState, setAppState] = useState<AppState>({ phase: "idle" });
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
+  const pastedHtmlRef = useRef<HTMLTextAreaElement>(null);
 
   function clearStepTimer() {
     if (stepTimerRef.current) {
@@ -98,7 +110,7 @@ export default function Home() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!barcode.trim() && !manualUrl.trim()) return;
+    if (!barcode.trim() && !manualUrl.trim() && !manualHtml.trim()) return;
 
     clearStepTimer();
     setAppState({ phase: "loading", stepIndex: 0 });
@@ -120,6 +132,7 @@ export default function Home() {
         body: JSON.stringify({
           barcode: barcode.trim() || undefined,
           manualUrl: manualUrl.trim() || undefined,
+          manualHtml: manualHtml.trim() || undefined,
         }),
       });
 
@@ -131,8 +144,15 @@ export default function Home() {
           phase: "error",
           data: json as LookupError,
         });
-        if (ERROR_CODES_NEEDING_URL.has((json as LookupError).errorCode)) {
-          setTimeout(() => urlInputRef.current?.focus(), 100);
+        const code = (json as LookupError).errorCode;
+        if (ERROR_CODES_NEEDING_FALLBACK.has(code)) {
+          setTimeout(() => {
+            if (ERROR_CODES_FOCUS_PASTED_HTML.has(code)) {
+              pastedHtmlRef.current?.focus();
+            } else {
+              urlInputRef.current?.focus();
+            }
+          }, 100);
         }
       } else {
         setAppState({ phase: "success", data: json as LookupResponse });
@@ -149,9 +169,9 @@ export default function Home() {
     }
   }
 
-  const needsUrl =
+  const needsFallbackHelp =
     appState.phase === "error" &&
-    ERROR_CODES_NEEDING_URL.has(appState.data.errorCode);
+    ERROR_CODES_NEEDING_FALLBACK.has(appState.data.errorCode);
 
   return (
     <main className="max-w-3xl mx-auto px-4 py-10">
@@ -186,11 +206,11 @@ export default function Home() {
           <label
             htmlFor="manualUrl"
             className={`block text-sm font-medium mb-1 ${
-              needsUrl ? "text-blue-600" : "text-gray-700"
+              needsFallbackHelp ? "text-blue-600" : "text-gray-700"
             }`}
           >
-            Or paste the official product page URL
-            {!needsUrl && (
+            Official product page URL
+            {!needsFallbackHelp && (
               <span className="text-gray-400 font-normal"> (optional)</span>
             )}
           </label>
@@ -202,7 +222,41 @@ export default function Home() {
             onChange={(e) => setManualUrl(e.target.value)}
             placeholder="https://www.brand.com/product-name"
             className={`w-full border rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-              needsUrl
+              needsFallbackHelp
+                ? "border-blue-400 ring-1 ring-blue-400 focus:ring-blue-500"
+                : "border-gray-300 focus:ring-blue-500"
+            }`}
+          />
+        </div>
+
+        <div>
+          <label
+            htmlFor="manualHtml"
+            className={`block text-sm font-medium mb-1 ${
+              needsFallbackHelp &&
+              appState.phase === "error" &&
+              ERROR_CODES_FOCUS_PASTED_HTML.has(appState.data.errorCode)
+                ? "text-blue-600"
+                : "text-gray-700"
+            }`}
+          >
+            Or paste saved page HTML
+            <span className="text-gray-400 font-normal">
+              {" "}
+              — View Source / Save Complete webpage (optional fallback)
+            </span>
+          </label>
+          <textarea
+            id="manualHtml"
+            ref={pastedHtmlRef}
+            value={manualHtml}
+            onChange={(e) => setManualHtml(e.target.value)}
+            placeholder="Paste the official manufacturer product page HTML here if URL fetch fails or loads empty in this tool."
+            rows={5}
+            className={`w-full border rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 resize-y min-h-[6rem] ${
+              needsFallbackHelp &&
+              appState.phase === "error" &&
+              ERROR_CODES_FOCUS_PASTED_HTML.has(appState.data.errorCode)
                 ? "border-blue-400 ring-1 ring-blue-400 focus:ring-blue-500"
                 : "border-gray-300 focus:ring-blue-500"
             }`}
@@ -245,7 +299,7 @@ export default function Home() {
                 Search Google for official page →
               </a>
               <p className="text-xs text-gray-400 mt-1">
-                Then paste the URL above and click Look Up again.
+                Then paste the official URL above (or pasted page HTML below) and click Look Up again.
               </p>
             </div>
           )}
@@ -255,17 +309,23 @@ export default function Home() {
       {appState.phase === "success" && (
         <div className="mt-8 flex flex-col gap-6">
 
-          {/* Source link */}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-400">Source:</span>
-            <a
-              href={appState.data.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-600 hover:underline truncate"
-            >
-              {appState.data.sourceUrl}
-            </a>
+          {/* Source link — URL when known; pasted-only flow has no clickable href */}
+          <div className="flex flex-wrap items-baseline gap-2 text-sm">
+            <span className="text-gray-400 shrink-0">Official page:</span>
+            {appState.data.sourceUrl ? (
+              <a
+                href={appState.data.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:underline truncate"
+              >
+                {appState.data.sourceUrl}
+              </a>
+            ) : (
+              <span className="text-gray-600">
+                pasted HTML only — add the URL field above when available for attribution
+              </span>
+            )}
           </div>
 
           {/* Preview */}
@@ -288,16 +348,22 @@ export default function Home() {
             </pre>
           </div>
 
-          {/* Divider + metadata — matches user's spec exactly */}
+          {/* Divider — HTML + --- + price + alt (copy-pack matches listing guidelines) */}
           <div className="border-t border-gray-300 pt-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <p className="text-sm text-gray-700">
-                <span className="font-medium">Suggested price:</span>{" "}
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 m-0">
+                Copy pack (Shopify HTML + notes)
+              </p>
+              <CopyButton text={buildCopyPack(appState.data)} label="Copy pack" />
+            </div>
+            <div className="flex items-start justify-between gap-4 flex-wrap">
+              <p className="text-sm text-gray-700 m-0">
+                <span className="font-medium">Suggested price (RRP / market guide):</span>{" "}
                 <span className="text-green-700 font-bold">{appState.data.price}</span>
               </p>
             </div>
             <div className="flex items-start justify-between gap-4">
-              <p className="text-sm text-gray-700">
+              <p className="text-sm text-gray-700 m-0">
                 <span className="font-medium">Alt text:</span>{" "}
                 <span className="text-gray-600">{appState.data.altText}</span>
                 <span className="text-xs text-gray-400 ml-2">({appState.data.altText.length}/125)</span>
@@ -311,6 +377,7 @@ export default function Home() {
               setAppState({ phase: "idle" });
               setBarcode("");
               setManualUrl("");
+              setManualHtml("");
             }}
             className="self-start text-sm text-gray-500 hover:text-gray-700 underline"
           >

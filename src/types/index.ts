@@ -10,12 +10,15 @@ export interface BarcodeResult {
 export interface LookupRequest {
   barcode?: string;
   manualUrl?: string;
+  /** Saved / View Source HTML from the official product page — bypasses HTTP scrape when non-empty */
+  manualHtml?: string;
 }
 
 export interface LookupResponse {
   html: string;
   price: string;
   altText: string;
+  /** Empty when generation used pasted HTML only without a URL */
   sourceUrl: string;
   productName: string;
 }
