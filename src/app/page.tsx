@@ -30,6 +30,32 @@ function extractPrice(priceStr: string): string {
   return match ? match[1] : "";
 }
 
+const DEMO_DATA: LookupResponse = {
+  productName: "Apple AirPods Pro (2nd Generation)",
+  sourceUrl: "https://www.apple.com/au/shop/product/MTJV3ZA/A/airpods-pro",
+  html: `<p>Experience next-level audio with the Apple AirPods Pro (2nd Generation), featuring Active Noise Cancellation that adapts to your ear geometry and environment. Adaptive Transparency lets you hear the world around you while your music plays on.</p>
+<p>Powered by the Apple H2 chip, these earbuds deliver remarkably low distortion audio and up to 2× more noise cancellation than the previous generation. A new touch control on the stem lets you swipe to adjust volume — a first for AirPods.</p>
+<p>Perfect for commuters, gym-goers, and anyone who demands premium wireless audio. The MagSafe Charging Case offers up to 30 hours of total listening time and charges via USB-C, MagSafe, Apple Watch charger, or Qi pad.</p>
+<h2>What's Included</h2>
+<ul>
+<li>AirPods Pro (2nd generation) with MagSafe Charging Case (USB-C)</li>
+<li>Four pairs of silicone ear tips (XS, S, M, L)</li>
+<li>USB-C to MagSafe Charging Cable</li>
+</ul>
+<h2>Key Features</h2>
+<ul>
+<li>Active Noise Cancellation with Adaptive Transparency</li>
+<li>Personalised Spatial Audio with dynamic head tracking</li>
+<li>Apple H2 chip — powerful, efficient performance</li>
+<li>Up to 6 hours listening time (30 hours total with case)</li>
+<li>IP54 water and dust resistance (earbuds and case)</li>
+<li>Touch control on stem for volume adjustment</li>
+<li>MagSafe, Apple Watch, and Qi compatible charging</li>
+</ul>`,
+  price: "Suggested RRP/guide: AUD $399.00",
+  altText: "Apple AirPods Pro 2nd Generation with MagSafe Charging Case USB-C in white, featuring H2 chip and Active Noise Cancellation",
+};
+
 const inputCls =
   "w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-transparent transition-shadow";
 
@@ -164,6 +190,7 @@ export default function Home() {
   const [shopifyPhase, setShopifyPhase] = useState<ShopifyPhase>({ phase: "idle" });
   const [tavilyUsage, setTavilyUsage] = useState<{ used: number; limit: number } | null>(null);
   const [tavilyUsageLoading, setTavilyUsageLoading] = useState(false);
+  const [demoMode, setDemoMode] = useState(false);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const pastedHtmlRef = useRef<HTMLTextAreaElement>(null);
@@ -222,6 +249,7 @@ export default function Home() {
     clearStepTimer();
     setAppState({ phase: "loading", stepIndex: 0 });
     setShopifyPhase({ phase: "idle" });
+    setDemoMode(false);
 
     let currentStep = 0;
     stepTimerRef.current = setInterval(() => {
@@ -307,6 +335,10 @@ export default function Home() {
 
   async function handleShopifyPush(title: string, price: string) {
     if (appState.phase !== "success") return;
+    if (demoMode) {
+      setShopifyPhase({ phase: "error", message: "Demo mode — add your Shopify credentials in Settings to push real products." });
+      return;
+    }
     setShopifyPhase({ phase: "pushing" });
     try {
       const res = await fetch("/api/shopify", {
@@ -586,6 +618,17 @@ export default function Home() {
               {appState.phase === "loading" ? "Working…" : "Look Up Product"}
             </button>
           </form>
+          <button
+            type="button"
+            onClick={() => {
+              setDemoMode(true);
+              setShopifyPhase({ phase: "idle" });
+              setAppState({ phase: "success", data: DEMO_DATA });
+            }}
+            className="mt-3 w-full py-2 text-sm text-gray-400 dark:text-gray-500 hover:text-[#008060] dark:hover:text-[#008060] border border-dashed border-gray-200 dark:border-gray-700 hover:border-[#008060] rounded-lg transition-colors"
+          >
+            Load demo output
+          </button>
         </div>
 
         {/* Loading */}
@@ -643,6 +686,14 @@ export default function Home() {
         {/* Success */}
         {appState.phase === "success" && (
           <div className="flex flex-col gap-4">
+
+            {demoMode && (
+              <div className="flex items-center gap-2 px-1">
+                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 font-medium border border-amber-200 dark:border-amber-800">
+                  Demo output — not a real lookup
+                </span>
+              </div>
+            )}
 
             {appState.data.sourceUrl && (
               <div className="flex items-center gap-2 text-sm px-1">
@@ -711,7 +762,7 @@ export default function Home() {
                 <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Push to Shopify</p>
               </div>
               <div className="p-5">
-                {!shopifyDomain || !shopifyToken ? (
+                {!demoMode && (!shopifyDomain || !shopifyToken) ? (
                   <p className="text-sm text-gray-400 dark:text-gray-500">
                     Add Shopify credentials in{" "}
                     <button
@@ -871,6 +922,7 @@ export default function Home() {
                 setBarcode("");
                 setManualUrl("");
                 setManualHtml("");
+                setDemoMode(false);
               }}
               className="self-center text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors py-1"
             >
