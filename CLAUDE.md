@@ -11,9 +11,10 @@ Shopify API integration is planned but not yet implemented — the current MVP i
 ## Tech Stack
 
 - **Next.js 14** — App Router, TypeScript, Tailwind CSS
-- **`@anthropic-ai/sdk`** — Claude `claude-sonnet-4-6` for description generation (system prompt cached)
+- **Ollama** (`qwen3:8b`) — local AI for description generation, no paid API key required
 - **`axios` + `cheerio`** — HTTP fetch and HTML parsing for web scraping
 - **UPC Item DB** — free barcode lookup API (no key, 100 req/day)
+- **Open Food Facts** — supplementary barcode source; often returns the official manufacturer URL directly
 - **Tavily** — finds the official product page from a product name (free 1,000/month with key from app.tavily.com)
 
 ## Running locally
@@ -29,8 +30,11 @@ Copy `.env.example` to `.env` and fill in:
 
 | Variable | Description |
 |---|---|
-| `ANTHROPIC_API_KEY` | From console.anthropic.com |
 | `TAVILY_API_KEY` (optional) | From app.tavily.com — enables auto product page search (1,000 free/month) |
+| `OLLAMA_HOST` (optional) | Ollama API base URL, defaults to `http://localhost:11434` |
+| `OLLAMA_MODEL` (optional) | Model to use, defaults to `qwen3:8b` |
+
+No paid API key is required. Ollama must be running locally (`ollama serve`) with the model pulled (`ollama pull qwen3:8b`).
 
 ## Source layout
 
@@ -38,10 +42,11 @@ Copy `.env.example` to `.env` and fill in:
 src/
   types/index.ts          — shared TypeScript interfaces
   lib/
-    barcode.ts            — UPC Item DB lookup
-    search.ts             — Brave Search API
+    barcode.ts            — UPC Item DB + Open Food Facts parallel lookup
+    search.ts             — Tavily search for official product page
     scraper.ts            — axios + cheerio page scraper
-    claude.ts             — Claude API description generator
+    claude.ts             — Ollama (qwen3:8b) description generator
+    price.ts              — multi-source price signal gathering
   app/
     layout.tsx            — root layout
     page.tsx              — main UI (client component)
