@@ -2,7 +2,7 @@ import axios from "axios";
 import type { BarcodeResult } from "@/types";
 
 const OLLAMA_BASE = process.env.OLLAMA_HOST ?? "http://localhost:11434";
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3-vl:30b";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3:8b";
 
 const SYSTEM_PROMPT = `You are a Shopify product description specialist writing for an Australian online retailer.
 
