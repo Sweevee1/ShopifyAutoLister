@@ -13,6 +13,7 @@ const STEPS = [
 type AppState =
   | { phase: "idle" }
   | { phase: "loading"; stepIndex: number }
+  | { phase: "streaming"; liveText: string; sourceUrl: string; productName: string }
   | { phase: "success"; data: LookupResponse }
   | { phase: "error"; data: LookupError; attemptedUrl?: string };
 
@@ -177,13 +178,10 @@ export default function Home() {
       });
 
       clearStepTimer();
-      const json = await res.json();
 
       if (!res.ok) {
-        setAppState({
-          phase: "error",
-          data: json as LookupError,
-        });
+        const json = await res.json();
+        setAppState({ phase: "error", data: json as LookupError });
         const code = (json as LookupError).errorCode;
         if (ERROR_CODES_NEEDING_FALLBACK.has(code)) {
           setTimeout(() => {
@@ -194,17 +192,47 @@ export default function Home() {
             }
           }, 100);
         }
-      } else {
-        setAppState({ phase: "success", data: json as LookupResponse });
+        return;
+      }
+
+      // Streaming response — read NDJSON line by line
+      const reader = res.body!.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let sourceUrl = "";
+      let productName = "";
+      let liveText = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split("\n");
+        buf = lines.pop()!;
+        for (const line of lines) {
+          if (!line.trim()) continue;
+          const msg = JSON.parse(line) as Record<string, string>;
+          if (msg.type === "meta") {
+            sourceUrl = msg.sourceUrl;
+            productName = msg.productName;
+          } else if (msg.type === "chunk") {
+            liveText += msg.text;
+            setAppState({ phase: "streaming", liveText, sourceUrl, productName });
+          } else if (msg.type === "done") {
+            setAppState({
+              phase: "success",
+              data: { html: msg.html, price: msg.price, altText: msg.altText, sourceUrl, productName },
+            });
+          } else if (msg.type === "error") {
+            setAppState({ phase: "error", data: { error: msg.error, errorCode: msg.errorCode } });
+          }
+        }
       }
     } catch {
       clearStepTimer();
       setAppState({
         phase: "error",
-        data: {
-          error: "Network error — could not reach the server.",
-          errorCode: "NETWORK_ERROR",
-        },
+        data: { error: "Network error — could not reach the server.", errorCode: "NETWORK_ERROR" },
       });
     }
   }
@@ -356,6 +384,19 @@ export default function Home() {
 
       {appState.phase === "loading" && (
         <StepIndicator stepIndex={appState.stepIndex} />
+      )}
+
+      {appState.phase === "streaming" && (
+        <div className="mt-6 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse flex-shrink-0" />
+            <p className="text-sm font-medium text-blue-600">Generating description...</p>
+          </div>
+          <pre className="text-xs bg-gray-900 text-green-300 p-4 rounded-md overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed min-h-[6rem]">
+            {appState.liveText}
+            <span className="inline-block w-1.5 h-3.5 bg-green-400 ml-0.5 animate-pulse align-middle" />
+          </pre>
+        </div>
       )}
 
       {appState.phase === "error" && (

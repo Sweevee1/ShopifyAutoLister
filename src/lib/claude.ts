@@ -16,7 +16,7 @@ Follow every rule below precisely. Do not deviate.
 - Never use <h1> — Shopify assigns that from the product title. Use <h2> for every section heading in the snippet only.
 
 ━━━ HTML FRAGMENT RULES ━━━
-- Output ONE fragment ready for Shopify’s description field — no document wrapper: NEVER output <html>, <head>, or <body>, and NEVER a top-level heading that says "Description" (or synonyms).
+- Output ONE fragment ready for Shopify's description field — no document wrapper: NEVER output <html>, <head>, or <body>, and NEVER a top-level heading that says "Description" (or synonyms).
 - No inline styles, scripts, iframe, forms, tables for layout spam, product reviews blocks, badges, countdowns, emoji, Markdown, fences, preamble, commentary, citation markers, URLs in the prose unless verbatim from the supplied material AND necessary for comprehension (prefer omitting naked URLs unless needed).
 
 ━━━ SEO RULES ━━━
@@ -93,7 +93,7 @@ Respond with ONLY valid JSON — no markdown fences, no thinking tags, no traili
   "altText": "..."
 }`;
 
-interface OllamaOutput {
+export interface OllamaOutput {
   html: string;
   price: string;
   altText: string;
@@ -107,19 +107,19 @@ function extractJson(text: string): string {
   return match[0];
 }
 
-export async function generateDescription(
+function buildPromptParts(
   scrapedContent: string,
   productInfo: Pick<BarcodeResult, "title" | "brand" | "category">,
   priceContext?: string,
   contentSource?: "scrape" | "paste"
-): Promise<OllamaOutput> {
+): string {
   const isDerived = productInfo.title === "(derive from page)";
   const blockHeading =
     contentSource === "paste"
       ? "Official product content (provided as pasted webpage extract — factual extraction only)"
       : "Official product page content";
 
-  const parts = [
+  return [
     isDerived
       ? "Product name: (derive from the page content below)"
       : `Product name: ${productInfo.title}`,
@@ -137,14 +137,23 @@ export async function generateDescription(
   ]
     .filter((l) => l !== null)
     .join("\n");
+}
 
-  let responseText: string;
+export async function* streamDescription(
+  scrapedContent: string,
+  productInfo: Pick<BarcodeResult, "title" | "brand" | "category">,
+  priceContext?: string,
+  contentSource?: "scrape" | "paste"
+): AsyncGenerator<string> {
+  const parts = buildPromptParts(scrapedContent, productInfo, priceContext, contentSource);
+
+  let res: { data: AsyncIterable<Buffer> };
   try {
-    const res = await axios.post(
+    res = await axios.post(
       `${OLLAMA_BASE}/api/chat`,
       {
         model: OLLAMA_MODEL,
-        stream: false,
+        stream: true,
         format: "json",
         options: { temperature: 0.1 },
         messages: [
@@ -152,9 +161,8 @@ export async function generateDescription(
           { role: "user", content: parts },
         ],
       },
-      { timeout: 300_000 }
+      { responseType: "stream", timeout: 300_000 }
     );
-    responseText = res.data?.message?.content ?? "";
   } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
       throw new Error(`Ollama request failed (is Ollama running?): ${err.message}`);
@@ -162,11 +170,39 @@ export async function generateDescription(
     throw err;
   }
 
+  let buffer = "";
+  for await (const chunk of res.data) {
+    buffer += chunk.toString();
+    const lines = buffer.split("\n");
+    buffer = lines.pop()!;
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      try {
+        const obj = JSON.parse(line);
+        const token: string = obj.message?.content ?? "";
+        if (token) yield token;
+      } catch {
+        // skip malformed lines
+      }
+    }
+  }
+  if (buffer.trim()) {
+    try {
+      const obj = JSON.parse(buffer);
+      const token: string = obj.message?.content ?? "";
+      if (token) yield token;
+    } catch {
+      // skip
+    }
+  }
+}
+
+export function parseOutput(fullText: string): OllamaOutput {
   try {
-    return JSON.parse(extractJson(responseText)) as OllamaOutput;
+    return JSON.parse(extractJson(fullText)) as OllamaOutput;
   } catch {
     throw new Error(
-      `Could not parse model response as JSON. Raw: ${responseText.slice(0, 300)}`
+      `Could not parse model response as JSON. Raw: ${fullText.slice(0, 300)}`
     );
   }
 }

@@ -13,7 +13,7 @@ import {
   PageNotFoundError,
   PageTimeoutError,
 } from "@/lib/scraper";
-import { generateDescription } from "@/lib/claude";
+import { streamDescription, parseOutput } from "@/lib/claude";
 import { gatherPriceSignals, formatPriceContext } from "@/lib/price";
 import type { BarcodeResult, LookupRequest } from "@/types";
 
@@ -157,25 +157,41 @@ export async function POST(request: NextRequest) {
     `[lookup] content ${usePastedHtml ? "pasted" : "scraped"} ${scrapedContent.length} chars, price context: ${priceContext.length} chars`
   );
 
-  let generated: { html: string; price: string; altText: string };
-  try {
-    generated = await generateDescription(
-      scrapedContent,
-      productInfo,
-      priceContext || undefined,
-      usePastedHtml ? "paste" : "scrape"
-    );
-    console.log(`[lookup] generated ${generated.html.length} chars of HTML, price: ${generated.price}`);
-  } catch (e) {
-    console.error("[lookup] generation error:", e);
-    return err("Failed to generate product description.", "GENERATION_FAILED", 500);
-  }
+  const encoder = new TextEncoder();
+  const productName = productInfo.title === "(derive from page)" ? "" : productInfo.title;
 
-  return NextResponse.json({
-    html: generated.html,
-    price: generated.price,
-    altText: generated.altText,
-    sourceUrl,
-    productName: productInfo.title === "(derive from page)" ? "" : productInfo.title,
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (obj: object) =>
+        controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
+
+      send({ type: "meta", sourceUrl, productName });
+
+      let fullText = "";
+      try {
+        for await (const token of streamDescription(
+          scrapedContent,
+          productInfo,
+          priceContext || undefined,
+          usePastedHtml ? "paste" : "scrape"
+        )) {
+          fullText += token;
+          send({ type: "chunk", text: token });
+        }
+
+        const parsed = parseOutput(fullText);
+        console.log(`[lookup] generated ${parsed.html.length} chars of HTML, price: ${parsed.price}`);
+        send({ type: "done", html: parsed.html, price: parsed.price, altText: parsed.altText });
+      } catch (e) {
+        console.error("[lookup] generation error:", e);
+        send({ type: "error", error: "Failed to generate product description.", errorCode: "GENERATION_FAILED" });
+      }
+
+      controller.close();
+    },
+  });
+
+  return new Response(stream, {
+    headers: { "Content-Type": "application/x-ndjson; charset=utf-8" },
   });
 }
