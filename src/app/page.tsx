@@ -215,6 +215,7 @@ export default function Home() {
           if (msg.type === "meta") {
             sourceUrl = msg.sourceUrl;
             productName = msg.productName;
+            setAppState({ phase: "streaming", liveText: "", sourceUrl, productName });
           } else if (msg.type === "chunk") {
             liveText += msg.text;
             setAppState({ phase: "streaming", liveText, sourceUrl, productName });

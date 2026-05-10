@@ -166,6 +166,7 @@ export async function POST(request: NextRequest) {
         controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
 
       send({ type: "meta", sourceUrl, productName });
+      console.log("[lookup] stream started, calling Ollama...");
 
       let fullText = "";
       try {
@@ -192,6 +193,10 @@ export async function POST(request: NextRequest) {
   });
 
   return new Response(stream, {
-    headers: { "Content-Type": "application/x-ndjson; charset=utf-8" },
+    headers: {
+      "Content-Type": "application/x-ndjson; charset=utf-8",
+      "Cache-Control": "no-cache",
+      "X-Accel-Buffering": "no",
+    },
   });
 }

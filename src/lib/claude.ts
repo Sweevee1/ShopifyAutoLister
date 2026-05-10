@@ -147,11 +147,12 @@ export async function* streamDescription(
 ): AsyncGenerator<string> {
   const parts = buildPromptParts(scrapedContent, productInfo, priceContext, contentSource);
 
-  let res: { data: AsyncIterable<Buffer> };
+  let response: Response;
   try {
-    res = await axios.post(
-      `${OLLAMA_BASE}/api/chat`,
-      {
+    response = await fetch(`${OLLAMA_BASE}/api/chat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
         model: OLLAMA_MODEL,
         stream: true,
         format: "json",
@@ -160,26 +161,32 @@ export async function* streamDescription(
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: parts },
         ],
-      },
-      { responseType: "stream", timeout: 300_000 }
-    );
+      }),
+      signal: AbortSignal.timeout(300_000),
+    });
   } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-      throw new Error(`Ollama request failed (is Ollama running?): ${err.message}`);
-    }
-    throw err;
+    throw new Error(`Ollama request failed (is Ollama running?): ${err instanceof Error ? err.message : String(err)}`);
   }
 
+  if (!response.ok) {
+    throw new Error(`Ollama request failed with status ${response.status}`);
+  }
+
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
   let buffer = "";
-  for await (const chunk of res.data) {
-    buffer += chunk.toString();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split("\n");
     buffer = lines.pop()!;
     for (const line of lines) {
       if (!line.trim()) continue;
       try {
-        const obj = JSON.parse(line);
-        const token: string = obj.message?.content ?? "";
+        const obj = JSON.parse(line) as { message?: { content?: string } };
+        const token = obj.message?.content ?? "";
         if (token) yield token;
       } catch {
         // skip malformed lines
@@ -188,8 +195,8 @@ export async function* streamDescription(
   }
   if (buffer.trim()) {
     try {
-      const obj = JSON.parse(buffer);
-      const token: string = obj.message?.content ?? "";
+      const obj = JSON.parse(buffer) as { message?: { content?: string } };
+      const token = obj.message?.content ?? "";
       if (token) yield token;
     } catch {
       // skip
