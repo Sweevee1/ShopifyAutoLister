@@ -387,14 +387,19 @@ export default function Home() {
           <button
             type="button"
             onClick={toggleDark}
-            className="flex items-center gap-0.5 p-1 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-colors"
+            className="flex items-center gap-0.5 p-0.5 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700"
             aria-label="Toggle dark mode"
           >
-            <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${!darkMode ? "bg-white dark:bg-gray-900 text-gray-800 shadow-sm" : "text-gray-400 dark:text-gray-500"}`}>
-              ☀ Light
+            <span className={`p-1.5 rounded-full transition-all ${!darkMode ? "bg-white shadow-sm text-amber-500" : "text-gray-400 dark:text-gray-600"}`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="12" cy="12" r="4"/>
+                <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none"/>
+              </svg>
             </span>
-            <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${darkMode ? "bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm" : "text-gray-400 dark:text-gray-500"}`}>
-              ☾ Dark
+            <span className={`p-1.5 rounded-full transition-all ${darkMode ? "bg-gray-700 shadow-sm text-blue-300" : "text-gray-400"}`}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>
+              </svg>
             </span>
           </button>
         </header>
