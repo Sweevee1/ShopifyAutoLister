@@ -36,7 +36,20 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
   );
 }
 
+const LAST_STEP = STEPS.length - 1;
+
 function StepIndicator({ stepIndex }: { stepIndex: number }) {
+  const [elapsed, setElapsed] = useState(0);
+
+  useEffect(() => {
+    if (stepIndex !== LAST_STEP) { setElapsed(0); return; }
+    setElapsed(0);
+    const t = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(t);
+  }, [stepIndex]);
+
+  const isGenerating = stepIndex === LAST_STEP;
+
   return (
     <div className="flex flex-col gap-2 py-6">
       {STEPS.map((label, i) => {
@@ -65,10 +78,26 @@ function StepIndicator({ stepIndex }: { stepIndex: number }) {
               }`}
             >
               {label}
+              {active && i === LAST_STEP && elapsed > 0 && (
+                <span className="ml-2 text-blue-400 font-normal tabular-nums">
+                  {elapsed}s
+                </span>
+              )}
             </span>
           </div>
         );
       })}
+
+      {isGenerating && (
+        <div className="mt-3 flex flex-col gap-1.5">
+          <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-blue-400 rounded-full animate-progress-bar" />
+          </div>
+          <p className="text-xs text-gray-400">
+            Running on CPU — typically 2–3 minutes. Hang tight.
+          </p>
+        </div>
+      )}
     </div>
   );
 }

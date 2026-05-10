@@ -7,7 +7,18 @@ const config: Config = {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      keyframes: {
+        "progress-bar": {
+          "0%":   { width: "0%",   marginLeft: "0%" },
+          "50%":  { width: "40%",  marginLeft: "30%" },
+          "100%": { width: "0%",   marginLeft: "100%" },
+        },
+      },
+      animation: {
+        "progress-bar": "progress-bar 2s ease-in-out infinite",
+      },
+    },
   },
   plugins: [require("@tailwindcss/typography")],
 };
