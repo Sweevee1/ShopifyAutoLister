@@ -52,7 +52,11 @@
       "PowerShell(Start-Process \"http://localhost:3000\")",
       "PowerShell(ollama list *)",
       "PowerShell(ollama pull *)",
-      "PowerShell(Get-Item *)"
+      "PowerShell(Get-Item *)",
+      "PowerShell(Get-WmiObject *)",
+      "PowerShell(Get-CimInstance *)",
+      "PowerShell(Select-String *)",
+      "PowerShell(ollama ps *)"
     ]
   }
 }
