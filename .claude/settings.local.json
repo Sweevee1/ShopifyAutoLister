@@ -51,7 +51,8 @@
       "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;$env:PATH\"; Set-Location \"C:\\\\Users\\\\lukes\\\\Documents\\\\Coding\\\\ShopifyAutoLister\"; & \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" install)",
       "PowerShell(Start-Process \"http://localhost:3000\")",
       "PowerShell(ollama list *)",
-      "PowerShell(ollama pull *)"
+      "PowerShell(ollama pull *)",
+      "PowerShell(Get-Item *)"
     ]
   }
 }
