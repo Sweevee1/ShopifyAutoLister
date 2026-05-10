@@ -90,14 +90,24 @@ function buildCopyPack(data: LookupResponse): string {
   return `${data.html}\n---\nSuggested price: ${data.price}\nAlt text: ${data.altText}`;
 }
 
+const TAVILY_KEY_STORAGE = "tavily_api_key";
+
 export default function Home() {
   const [barcode, setBarcode] = useState("");
   const [manualUrl, setManualUrl] = useState("");
   const [manualHtml, setManualHtml] = useState("");
   const [appState, setAppState] = useState<AppState>({ phase: "idle" });
+  const [tavilyKey, setTavilyKey] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const pastedHtmlRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem(TAVILY_KEY_STORAGE) ?? "";
+    setTavilyKey(saved);
+    setSettingsOpen(!saved);
+  }, []);
 
   function clearStepTimer() {
     if (stepTimerRef.current) {
@@ -133,6 +143,7 @@ export default function Home() {
           barcode: barcode.trim() || undefined,
           manualUrl: manualUrl.trim() || undefined,
           manualHtml: manualHtml.trim() || undefined,
+          tavilyApiKey: tavilyKey.trim() || undefined,
         }),
       });
 
@@ -180,6 +191,48 @@ export default function Home() {
         <p className="text-gray-500 text-sm mt-1">
           Paste a barcode to generate a Shopify-ready product description.
         </p>
+      </div>
+
+      {/* Settings */}
+      <div className="mb-6 border border-gray-200 rounded-md">
+        <button
+          type="button"
+          onClick={() => setSettingsOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-700 hover:bg-gray-50 rounded-md transition-colors"
+        >
+          <span>Settings</span>
+          <span className="text-gray-400 text-xs">
+            {tavilyKey ? "Tavily key saved" : "No Tavily key"} {settingsOpen ? "▲" : "▼"}
+          </span>
+        </button>
+        {settingsOpen && (
+          <div className="px-4 pb-4 flex flex-col gap-2 border-t border-gray-100 pt-3">
+            <label htmlFor="tavilyKey" className="text-sm font-medium text-gray-700">
+              Tavily API key
+              <span className="text-gray-400 font-normal ml-1">
+                — needed for automatic product page search (
+                <a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer" className="underline">
+                  get a free key
+                </a>
+                , 1,000/month)
+              </span>
+            </label>
+            <input
+              id="tavilyKey"
+              type="password"
+              value={tavilyKey}
+              onChange={(e) => {
+                setTavilyKey(e.target.value);
+                localStorage.setItem(TAVILY_KEY_STORAGE, e.target.value);
+              }}
+              placeholder="tvly-..."
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-gray-400">
+              Saved in your browser only — never sent anywhere except Tavily during searches.
+            </p>
+          </div>
+        )}
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">

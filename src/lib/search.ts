@@ -52,9 +52,10 @@ export class SearchFailedError extends Error {
 
 export async function searchForOfficialPage(
   productName: string,
-  brand: string
+  brand: string,
+  apiKeyOverride?: string
 ): Promise<string> {
-  const apiKey = process.env.TAVILY_API_KEY;
+  const apiKey = apiKeyOverride || process.env.TAVILY_API_KEY;
 
   if (!apiKey) {
     throw new SearchFailedError(

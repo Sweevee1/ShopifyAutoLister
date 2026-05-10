@@ -10,7 +10,8 @@ export interface PriceSignals {
 export async function gatherPriceSignals(
   productName: string,
   brand: string,
-  barcodeResult?: Pick<BarcodeResult, "lowestPrice" | "highestPrice">
+  barcodeResult?: Pick<BarcodeResult, "lowestPrice" | "highestPrice">,
+  apiKeyOverride?: string
 ): Promise<PriceSignals> {
   const signals: PriceSignals = {
     upcMin: barcodeResult?.lowestPrice,
@@ -18,7 +19,7 @@ export async function gatherPriceSignals(
     webSnippets: [],
   };
 
-  const apiKey = process.env.TAVILY_API_KEY;
+  const apiKey = apiKeyOverride || process.env.TAVILY_API_KEY;
   if (!apiKey) return signals;
 
   try {

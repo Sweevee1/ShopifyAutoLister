@@ -42,6 +42,7 @@ export async function POST(request: NextRequest) {
   const barcode = body.barcode?.trim();
   const manualUrl = body.manualUrl?.trim() ?? "";
   const manualHtml = body.manualHtml?.trim() ?? "";
+  const tavilyApiKey = body.tavilyApiKey?.trim() || undefined;
 
   if (!barcode && !manualUrl && !manualHtml) {
     return err(
@@ -85,7 +86,7 @@ export async function POST(request: NextRequest) {
 
     if (!url) {
       try {
-        url = await searchForOfficialPage(productInfo.title, productInfo.brand);
+        url = await searchForOfficialPage(productInfo.title, productInfo.brand, tavilyApiKey);
         console.log(`[lookup] search → ${url}`);
       } catch (e) {
         if (e instanceof SearchFailedError)
@@ -116,7 +117,7 @@ export async function POST(request: NextRequest) {
   const sourceUrl = usePastedHtml ? manualUrl || url || "" : url;
 
   const [priceSignals, scrapeOutcome] = await Promise.allSettled([
-    gatherPriceSignals(productInfo.title, productInfo.brand, barcodeResult),
+    gatherPriceSignals(productInfo.title, productInfo.brand, barcodeResult, tavilyApiKey),
     usePastedHtml ? Promise.resolve(manualHtml) : scrapeUrl(url),
   ]);
 
