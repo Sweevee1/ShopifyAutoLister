@@ -41,7 +41,9 @@
       "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); results=d.get\\('results',[]\\); print\\(f'{len\\(results\\)} results'\\); [print\\(r['url']\\) for r in results[:5]]\")",
       "Bash(ollama list *)",
       "Bash(npm uninstall *)",
-      "Bash(ollama pull *)"
+      "Bash(ollama pull *)",
+      "PowerShell(Get-Process *)",
+      "Bash(echo \"Started PID $!\")"
     ]
   }
 }
