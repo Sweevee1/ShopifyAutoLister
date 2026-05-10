@@ -42,6 +42,22 @@ function isDenied(url: string): boolean {
   return DENYLIST.some((domain) => url.includes(domain));
 }
 
+function extractDdgUrl(href: string): string | null {
+  try {
+    // DDG redirect: //duckduckgo.com/l/?uddg=<encoded>&rut=...
+    const qs = href.includes("?") ? href.split("?")[1] : href;
+    const params = new URLSearchParams(qs);
+    const uddg = params.get("uddg");
+    if (uddg) return decodeURIComponent(uddg);
+
+    // Fallback: if href is already an absolute URL
+    if (href.startsWith("http")) return href;
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export class SearchFailedError extends Error {
   code = "SEARCH_FAILED";
 }
@@ -50,47 +66,48 @@ export async function searchForOfficialPage(
   productName: string,
   brand: string
 ): Promise<string> {
-  const query = `${brand} ${productName} official site`.trim();
+  const query = encodeURIComponent(`${brand} ${productName} official site`.trim());
 
   let html: string;
   try {
-    const res = await axios.post(
-      "https://html.duckduckgo.com/html/",
-      new URLSearchParams({ q: query }),
+    const res = await axios.get(
+      `https://html.duckduckgo.com/html/?q=${query}`,
       {
         headers: {
           "User-Agent": USER_AGENT,
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "text/html",
+          Accept: "text/html,application/xhtml+xml",
+          "Accept-Language": "en-AU,en;q=0.9",
         },
-        timeout: 10_000,
+        timeout: 12_000,
       }
     );
     html = res.data as string;
   } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
-      throw new SearchFailedError(`DuckDuckGo search failed: ${err.message}`);
+      throw new SearchFailedError(`Search request failed: ${err.message}`);
     }
     throw err;
   }
 
   const $ = cheerio.load(html);
-
   const urls: string[] = [];
 
-  // DDG HTML results: each result link has href like
-  // //duckduckgo.com/l/?uddg=<encoded-url>&...
-  $("a.result__a").each((_, el) => {
+  // Primary selector: result links
+  $("a.result__a, a[href*='uddg=']").each((_, el) => {
     const href = $(el).attr("href") ?? "";
-    try {
-      const qs = href.includes("?") ? href.split("?")[1] : "";
-      const params = new URLSearchParams(qs);
-      const actual = params.get("uddg");
-      if (actual) urls.push(decodeURIComponent(actual));
-    } catch {
-      // skip unparseable hrefs
-    }
+    const url = extractDdgUrl(href);
+    if (url && url.startsWith("http")) urls.push(url);
   });
+
+  // Fallback: scan every <a> for uddg param
+  if (urls.length === 0) {
+    $("a").each((_, el) => {
+      const href = $(el).attr("href") ?? "";
+      if (!href.includes("uddg=")) return;
+      const url = extractDdgUrl(href);
+      if (url && url.startsWith("http")) urls.push(url);
+    });
+  }
 
   if (urls.length === 0) {
     throw new SearchFailedError(

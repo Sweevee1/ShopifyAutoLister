@@ -57,6 +57,7 @@ export async function POST(request: NextRequest) {
     try {
       const result = await lookupBarcode(barcode);
       productInfo = result;
+      console.log(`[lookup] barcode ${barcode} → "${productInfo.title}" by ${productInfo.brand}`);
     } catch (e) {
       if (e instanceof BarcodeInvalidError) {
         return err(e.message, "BARCODE_INVALID", 422, "Check the barcode and try again.");
@@ -82,6 +83,7 @@ export async function POST(request: NextRequest) {
 
     try {
       url = await searchForOfficialPage(productInfo.title, productInfo.brand);
+      console.log(`[lookup] search → ${url}`);
     } catch (e) {
       if (e instanceof SearchFailedError) {
         return err(
@@ -98,6 +100,7 @@ export async function POST(request: NextRequest) {
   let scrapedContent: string;
   try {
     scrapedContent = await scrapeUrl(url);
+    console.log(`[lookup] scraped ${scrapedContent.length} chars from ${url}`);
   } catch (e) {
     if (e instanceof PageBlockedError) {
       return err(
@@ -127,8 +130,9 @@ export async function POST(request: NextRequest) {
   let generated: { html: string; price: string; altText: string };
   try {
     generated = await generateDescription(scrapedContent, productInfo);
+    console.log(`[lookup] Claude generated ${generated.html.length} chars of HTML`);
   } catch (e) {
-    console.error("Claude generation error:", e);
+    console.error("[lookup] Claude generation error:", e);
     return err("Failed to generate product description.", "GENERATION_FAILED", 500);
   }
 

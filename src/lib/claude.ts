@@ -78,14 +78,7 @@ export async function generateDescription(
   const response = await client.messages.create({
     model: "claude-sonnet-4-6",
     max_tokens: 1024,
-    system: [
-      {
-        type: "text",
-        text: SYSTEM_PROMPT,
-        // @ts-expect-error cache_control is supported at runtime
-        cache_control: { type: "ephemeral" },
-      },
-    ],
+    system: SYSTEM_PROMPT,
     messages: [{ role: "user", content: userMessage }],
   });
 
