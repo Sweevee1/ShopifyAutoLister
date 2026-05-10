@@ -6,81 +6,99 @@ const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3:8b";
 
 const SYSTEM_PROMPT = `You are a Shopify product description specialist writing for an Australian online retailer.
 
-RULES — follow every rule precisely:
+Follow every rule below precisely. Do not deviate.
 
-CONTENT RULES
-- Extract information ONLY from the official product page content provided. Do not add, invent, or pad anything.
-- Never mention availability, stock levels, discontinuation, or scarcity. The seller determines that.
-- Write in Australian English (e.g., "colour" not "color", "aluminium" not "aluminum", "authorised" not "authorized").
-- Identify the product's RRP or typical market value from the content and note it as the suggested price.
-- Output clean HTML for Shopify's description field — no <html>, <head>, or <body> wrappers. No "Description" heading.
-- Also provide a short alt text suggestion for the main product image (under 125 characters, descriptive, no "image of").
+━━━ CONTENT RULES ━━━
+- Use ONLY information from the product page content provided. Never invent or pad.
+- Never mention availability, stock, discontinuation, or scarcity.
+- Write in Australian English: "colour" not "color", "aluminium" not "aluminum", "authorised" not "authorized".
+- Never use <h1> — Shopify reserves that for the product title. Use <h2> for all section headings.
 
-SEO RULES
-- Use <h2> for ALL section headings. NEVER use <h1> — Shopify assigns h1 to the product title.
+━━━ SEO RULES ━━━
 - Place the primary keyword naturally in the first sentence (within the first 100 words).
-- Use <strong> sparingly — only for genuinely critical terms or specs, not decorative emphasis.
-- Total word count: 150–300 words.
-- No keyword stuffing. Use the primary keyword a maximum of 3 times.
-- Write for humans first; clarity is what search engines reward.
+- Use <strong> only for genuinely critical specs or terms — never for decoration.
+- Total word count in the HTML: 150–300 words.
+- No keyword stuffing. Primary keyword appears 2–3 times max.
 
-REQUIRED HTML STRUCTURE:
-[2–3 sentence overview — primary keyword in sentence 1]
-[1–2 sentences on contents or how it works]
-[1 sentence on who it suits or why it's worth buying]
+━━━ EXACT HTML STRUCTURE ━━━
+Output this structure in the "html" field — no extra sections, no extra wrappers:
+
+<p>[Sentence 1 with primary keyword. Sentence 2. Sentence 3 optional.]</p>
+<p>[1–2 sentences on what's in the box or how it works.]</p>
+<p>[1 sentence on who it suits or why it's worth buying.]</p>
 
 <h2>What's Included</h2>
-<ul><li>[qty] × [item]</li></ul>
+<ul>
+  <li>[qty] × [item]</li>
+</ul>
 
 <h2>Key Features</h2>
-<ul><li>[feature]</li></ul>
+<ul>
+  <li>[feature]</li>
+</ul>
 
 <h2>Perfect For</h2>
-<ul><li>[audience or use case]</li></ul>
+<ul>
+  <li>[audience or use case]</li>
+</ul>
 
-[Purchase limit paragraph ONLY if official page mentions one. Otherwise omit entirely.]
+[If and only if the page mentions a purchase limit, add one <p> for it. Otherwise omit entirely.]
 
-OUTPUT FORMAT — respond with ONLY valid JSON, no markdown fences, no extra text, no thinking tags:
-{ "html": "...", "price": "AUD $XX.XX", "altText": "..." }
+━━━ PRICE RULES ━━━
+- Use the price signals provided (official page, UPC database prices, web mentions) to determine the Australian RRP.
+- Prefer the official Australian RRP. If unavailable, convert the USD UPC price to AUD (multiply by ~1.55) as a guide.
+- If you can find a credible AUD price, output "AUD $XX.XX". For a range, "AUD $XX.XX – $XX.XX".
+- If no reliable price exists, output "Price not found — check official site".
 
-If price cannot be determined: "price": "Price not found — check official site"
-If a section has no applicable content, omit that section entirely.`;
+━━━ ALT TEXT RULES ━━━
+- Under 125 characters.
+- Descriptive of the product itself — not "image of" or "photo of".
+- Based on the product page content, not the image alone.
 
-interface ClaudeOutput {
+━━━ OUTPUT FORMAT ━━━
+Respond with ONLY valid JSON — no markdown fences, no thinking tags, no extra text:
+{
+  "html": "<p>...</p>...",
+  "price": "AUD $XX.XX",
+  "altText": "..."
+}`;
+
+interface OllamaOutput {
   html: string;
   price: string;
   altText: string;
 }
 
 function extractJson(text: string): string {
-  // Strip Qwen3 thinking blocks: <think>...</think>
+  // Strip Qwen3 thinking blocks
   const stripped = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
-  // Extract first JSON object
   const match = stripped.match(/\{[\s\S]*\}/);
-  if (!match) throw new Error("No JSON object found in model response.");
+  if (!match) throw new Error("No JSON found in model response.");
   return match[0];
 }
 
 export async function generateDescription(
   scrapedContent: string,
-  productInfo: Pick<BarcodeResult, "title" | "brand" | "category">
-): Promise<ClaudeOutput> {
+  productInfo: Pick<BarcodeResult, "title" | "brand" | "category">,
+  priceContext?: string
+): Promise<OllamaOutput> {
   const isDerived = productInfo.title === "(derive from page)";
-  const productLine = isDerived
-    ? "Product name: (derive from the page content below)"
-    : `Product name: ${productInfo.title}`;
 
-  const userMessage = [
-    productLine,
+  const parts = [
+    isDerived
+      ? "Product name: (derive from the page content below)"
+      : `Product name: ${productInfo.title}`,
     productInfo.brand ? `Brand: ${productInfo.brand}` : null,
     productInfo.category ? `Category: ${productInfo.category}` : null,
     "",
+    priceContext ? `Price signals:\n${priceContext}` : null,
+    priceContext ? "" : null,
     "Official product page content:",
     "---",
     scrapedContent,
     "---",
     "",
-    "Generate the Shopify description following your system rules exactly. Output only JSON.",
+    "Generate the Shopify description. Output only JSON.",
   ]
     .filter((l) => l !== null)
     .join("\n");
@@ -96,7 +114,7 @@ export async function generateDescription(
         options: { temperature: 0.3 },
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
-          { role: "user", content: userMessage },
+          { role: "user", content: parts },
         ],
       },
       { timeout: 120_000 }
@@ -104,18 +122,16 @@ export async function generateDescription(
     responseText = res.data?.message?.content ?? "";
   } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
-      throw new Error(
-        `Ollama request failed (is Ollama running?): ${err.message}`
-      );
+      throw new Error(`Ollama request failed (is Ollama running?): ${err.message}`);
     }
     throw err;
   }
 
   try {
-    return JSON.parse(extractJson(responseText)) as ClaudeOutput;
+    return JSON.parse(extractJson(responseText)) as OllamaOutput;
   } catch {
     throw new Error(
-      `Could not parse model response as JSON. Raw output: ${responseText.slice(0, 200)}`
+      `Could not parse model response as JSON. Raw: ${responseText.slice(0, 300)}`
     );
   }
 }

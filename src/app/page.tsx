@@ -254,8 +254,10 @@ export default function Home() {
 
       {appState.phase === "success" && (
         <div className="mt-8 flex flex-col gap-6">
+
+          {/* Source link */}
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-gray-500">Source:</span>
+            <span className="text-gray-400">Source:</span>
             <a
               href={appState.data.sourceUrl}
               target="_blank"
@@ -266,37 +268,19 @@ export default function Home() {
             </a>
           </div>
 
-          {appState.data.productName && (
-            <div className="text-sm text-gray-600">
-              <span className="font-medium">Product:</span>{" "}
-              {appState.data.productName}
-            </div>
-          )}
-
-          <div className="inline-flex items-center gap-3 px-5 py-3 bg-green-50 border border-green-200 rounded-lg self-start">
-            <span className="text-sm text-gray-600">Suggested price:</span>
-            <span className="text-lg font-bold text-green-700">
-              {appState.data.price}
-            </span>
-          </div>
-
+          {/* Preview */}
           <div>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-gray-700">
-                Preview
-              </h2>
-            </div>
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">Preview</p>
             <div
-              className="prose prose-sm max-w-none p-4 bg-white border border-gray-200 rounded-md"
+              className="prose prose-sm max-w-none p-5 bg-white border border-gray-200 rounded-md"
               dangerouslySetInnerHTML={{ __html: appState.data.html }}
             />
           </div>
 
+          {/* Raw HTML */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-gray-700">
-                Shopify HTML
-              </h2>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">Shopify HTML</p>
               <CopyButton text={appState.data.html} />
             </div>
             <pre className="text-xs bg-gray-900 text-gray-100 p-4 rounded-md overflow-x-auto whitespace-pre-wrap">
@@ -304,17 +288,22 @@ export default function Home() {
             </pre>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-sm font-semibold text-gray-700">Alt Text</h2>
+          {/* Divider + metadata — matches user's spec exactly */}
+          <div className="border-t border-gray-300 pt-4 flex flex-col gap-3">
+            <div className="flex items-center justify-between">
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Suggested price:</span>{" "}
+                <span className="text-green-700 font-bold">{appState.data.price}</span>
+              </p>
+            </div>
+            <div className="flex items-start justify-between gap-4">
+              <p className="text-sm text-gray-700">
+                <span className="font-medium">Alt text:</span>{" "}
+                <span className="text-gray-600">{appState.data.altText}</span>
+                <span className="text-xs text-gray-400 ml-2">({appState.data.altText.length}/125)</span>
+              </p>
               <CopyButton text={appState.data.altText} />
             </div>
-            <p className="text-sm bg-white border border-gray-200 rounded-md px-3 py-2 text-gray-700">
-              {appState.data.altText}
-            </p>
-            <p className="text-xs text-gray-400 mt-1">
-              {appState.data.altText.length}/125 characters
-            </p>
           </div>
 
           <button
