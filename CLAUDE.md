@@ -14,7 +14,7 @@ Shopify API integration is planned but not yet implemented — the current MVP i
 - **`@anthropic-ai/sdk`** — Claude `claude-sonnet-4-6` for description generation (system prompt cached)
 - **`axios` + `cheerio`** — HTTP fetch and HTML parsing for web scraping
 - **UPC Item DB** — free barcode lookup API (no key, 100 req/day)
-- **Brave Search API** — finds the official product page from a product name (key required)
+- **DuckDuckGo HTML** — finds the official product page from a product name (free, no key)
 
 ## Running locally
 
@@ -30,7 +30,6 @@ Copy `.env.example` to `.env` and fill in:
 | Variable | Description |
 |---|---|
 | `ANTHROPIC_API_KEY` | From console.anthropic.com |
-| `BRAVE_SEARCH_API_KEY` | From api.search.brave.com (2,000 free/month) |
 
 ## Source layout
 
