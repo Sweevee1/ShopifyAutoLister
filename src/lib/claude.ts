@@ -26,29 +26,52 @@ Follow every rule below precisely. Do not deviate.
 - No keyword stuffing — use the primary keyword only a few times across the snippet (maximum three).
 - Optimise primarily for clarity and useful detail; factual, human-readable prose is the goal — do not cram keywords.
 
-━━━ EXACT HTML STRUCTURE ━━━
-Output this structure in the "html" field — no extra sections, no wrappers:
+━━━ EXACT HTML STRUCTURE — MANDATORY ━━━
+The "html" value MUST follow this skeleton exactly — same tags, same order, no additions, no omissions:
 
-<p>[2–3 sentence overview opening with primary keyword in sentence 1. Optional sentence 3.]</p>
-<p>[1–2 sentences on contents or how it works — facts only]</p>
-<p>[1 sentence on who it suits or why it merits purchase — restrained, factual]</p>
-
+<p>OVERVIEW SENTENCE 1 WITH PRIMARY KEYWORD. OVERVIEW SENTENCE 2. OPTIONAL SENTENCE 3.</p>
+<p>CONTENTS OR HOW IT WORKS — 1 TO 2 SENTENCES, FACTS ONLY.</p>
+<p>WHO IT SUITS OR WHY WORTH BUYING — 1 SENTENCE, RESTRAINED.</p>
 <h2>What's Included</h2>
 <ul>
-  <li>[qty] × [item]</li>
+<li>QTY × ITEM</li>
 </ul>
-
 <h2>Key Features</h2>
 <ul>
-  <li>[feature]</li>
+<li>FEATURE</li>
 </ul>
-
 <h2>Perfect For</h2>
 <ul>
-  <li>[audience or use case]</li>
+<li>AUDIENCE OR USE CASE</li>
 </ul>
 
-[IF AND ONLY IF the supplied material mentions a strict purchase/per-customer/order cap, add ONE plain <p> stating that limit verbatim in neutral tone. Omit this block entirely otherwise.]
+Rules for the lists:
+- Each <li> is one item only. Add as many <li> entries as the source material supports.
+- Do NOT merge multiple items into one <li>.
+- Do NOT wrap list items in <p> tags.
+- Do NOT add any section beyond the three <h2> blocks above, except one optional purchase-limit <p> if and only if the supplied material explicitly states a per-customer order cap.
+
+WORKED EXAMPLE (fictional product — illustrates format only):
+<p>The Acme Pro Wireless Keyboard is a full-size Bluetooth keyboard designed for multi-device productivity. It pairs with up to three devices simultaneously and switches between them with a single keystroke. Compact yet full-featured, it suits both office and home setups.</p>
+<p>The keyboard uses <strong>rechargeable AAA batteries</strong> with up to 12 months of battery life per charge. It connects via Bluetooth 5.0 or the included 2.4 GHz USB receiver.</p>
+<p>A practical choice for anyone who regularly switches between a laptop, tablet, and desktop.</p>
+<h2>What's Included</h2>
+<ul>
+<li>1 × Acme Pro Wireless Keyboard</li>
+<li>1 × 2.4 GHz USB receiver</li>
+<li>1 × USB-C charging cable</li>
+</ul>
+<h2>Key Features</h2>
+<ul>
+<li>Bluetooth 5.0 — connects up to 3 devices</li>
+<li>12-month rechargeable battery life</li>
+<li>Full-size layout with numpad</li>
+</ul>
+<h2>Perfect For</h2>
+<ul>
+<li>Multi-device home and office users</li>
+<li>Remote workers and students</li>
+</ul>
 
 ━━━ PRICE (JSON "price") RULES ━━━
 The "price" field is ONE string for sellers: anchor it to indicative Australian dollar RRP OR typical authorised retail / market-clearing AUD value inferred ONLY from supplied price signals and/or explicit price text in the supplied page material plus the PRICE SIGNALS block if present.
@@ -123,7 +146,7 @@ export async function generateDescription(
         model: OLLAMA_MODEL,
         stream: false,
         format: "json",
-        options: { temperature: 0.3 },
+        options: { temperature: 0.1 },
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user", content: parts },
