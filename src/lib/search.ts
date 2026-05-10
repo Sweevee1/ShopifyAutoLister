@@ -1,4 +1,4 @@
-import axios from "axios";
+import { tavily } from "tavily";
 
 const DENYLIST = [
   "amazon.",
@@ -54,10 +54,9 @@ export async function searchForOfficialPage(
   productName: string,
   brand: string
 ): Promise<string> {
-  const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
-  const cx = process.env.GOOGLE_SEARCH_CX;
+  const apiKey = process.env.TAVILY_API_KEY;
 
-  if (!apiKey || !cx) {
+  if (!apiKey) {
     throw new SearchFailedError(
       "No search API configured. Paste the official product page URL below.",
       productName,
@@ -65,29 +64,25 @@ export async function searchForOfficialPage(
     );
   }
 
-  const query = `${brand} ${productName}`.trim();
+  const query = `${brand} ${productName} official product page`.trim();
 
-  let items: Array<{ link: string }> = [];
+  let results: Array<{ url: string }> = [];
   try {
-    const res = await axios.get("https://www.googleapis.com/customsearch/v1", {
-      params: { key: apiKey, cx, q: query, num: 5, gl: "au", hl: "en" },
-      timeout: 10_000,
+    const client = tavily({ apiKey });
+    const res = await client.search(query, {
+      searchDepth: "basic",
+      maxResults: 5,
     });
-    items = res.data?.items ?? [];
+    results = res.results ?? [];
   } catch (err: unknown) {
-    if (axios.isAxiosError(err)) {
-      const status = err.response?.status;
-      const msg = (err.response?.data as { error?: { message?: string } })?.error?.message ?? err.message;
-      throw new SearchFailedError(
-        `Search failed (${status}): ${msg}. Paste the official product page URL below.`,
-        productName,
-        brand
-      );
-    }
-    throw err;
+    throw new SearchFailedError(
+      `Search failed: ${err instanceof Error ? err.message : String(err)}. Paste the official product page URL below.`,
+      productName,
+      brand
+    );
   }
 
-  if (items.length === 0) {
+  if (results.length === 0) {
     throw new SearchFailedError(
       `No results found for "${query}". Paste the official product page URL below.`,
       productName,
@@ -95,8 +90,8 @@ export async function searchForOfficialPage(
     );
   }
 
-  const preferred = items.find((i) => !isDenied(i.link));
-  const chosen = (preferred ?? items[0]).link;
+  const preferred = results.find((r) => !isDenied(r.url));
+  const chosen = (preferred ?? results[0]).url;
   console.log(`[search] → ${chosen}`);
   return chosen;
 }

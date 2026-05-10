@@ -14,7 +14,7 @@ Shopify API integration is planned but not yet implemented — the current MVP i
 - **`@anthropic-ai/sdk`** — Claude `claude-sonnet-4-6` for description generation (system prompt cached)
 - **`axios` + `cheerio`** — HTTP fetch and HTML parsing for web scraping
 - **UPC Item DB** — free barcode lookup API (no key, 100 req/day)
-- **DuckDuckGo HTML** — finds the official product page from a product name (free, no key)
+- **Tavily** — finds the official product page from a product name (free 1,000/month with key from app.tavily.com)
 
 ## Running locally
 
@@ -30,6 +30,7 @@ Copy `.env.example` to `.env` and fill in:
 | Variable | Description |
 |---|---|
 | `ANTHROPIC_API_KEY` | From console.anthropic.com |
+| `TAVILY_API_KEY` (optional) | From app.tavily.com — enables auto product page search (1,000 free/month) |
 
 ## Source layout
 
