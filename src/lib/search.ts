@@ -1,8 +1,5 @@
 import axios from "axios";
 
-const USER_AGENT =
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
-
 const DENYLIST = [
   "amazon.",
   "ebay.",
@@ -57,11 +54,12 @@ export async function searchForOfficialPage(
   productName: string,
   brand: string
 ): Promise<string> {
-  const apiKey = process.env.BRAVE_SEARCH_API_KEY;
+  const apiKey = process.env.GOOGLE_SEARCH_API_KEY;
+  const cx = process.env.GOOGLE_SEARCH_CX;
 
-  if (!apiKey) {
+  if (!apiKey || !cx) {
     throw new SearchFailedError(
-      `No search API configured. Paste the official product page URL below.`,
+      "No search API configured. Paste the official product page URL below.",
       productName,
       brand
     );
@@ -69,26 +67,19 @@ export async function searchForOfficialPage(
 
   const query = `${brand} ${productName}`.trim();
 
-  let results: Array<{ url: string }> = [];
+  let items: Array<{ link: string }> = [];
   try {
-    const res = await axios.get(
-      "https://api.search.brave.com/res/v1/web/search",
-      {
-        headers: {
-          Accept: "application/json",
-          "Accept-Encoding": "gzip",
-          "X-Subscription-Token": apiKey,
-          "User-Agent": USER_AGENT,
-        },
-        params: { q: query, count: 5, country: "AU" },
-        timeout: 10_000,
-      }
-    );
-    results = res.data?.web?.results ?? [];
+    const res = await axios.get("https://www.googleapis.com/customsearch/v1", {
+      params: { key: apiKey, cx, q: query, num: 5, gl: "au", hl: "en" },
+      timeout: 10_000,
+    });
+    items = res.data?.items ?? [];
   } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
+      const status = err.response?.status;
+      const msg = (err.response?.data as { error?: { message?: string } })?.error?.message ?? err.message;
       throw new SearchFailedError(
-        `Search failed: ${err.response?.status ?? err.message}. Paste the official product page URL below.`,
+        `Search failed (${status}): ${msg}. Paste the official product page URL below.`,
         productName,
         brand
       );
@@ -96,7 +87,7 @@ export async function searchForOfficialPage(
     throw err;
   }
 
-  if (results.length === 0) {
+  if (items.length === 0) {
     throw new SearchFailedError(
       `No results found for "${query}". Paste the official product page URL below.`,
       productName,
@@ -104,8 +95,8 @@ export async function searchForOfficialPage(
     );
   }
 
-  const preferred = results.find((r) => !isDenied(r.url));
-  const chosen = (preferred ?? results[0]).url;
+  const preferred = items.find((i) => !isDenied(i.link));
+  const chosen = (preferred ?? items[0]).link;
   console.log(`[search] → ${chosen}`);
   return chosen;
 }

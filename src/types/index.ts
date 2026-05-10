@@ -4,6 +4,7 @@ export interface BarcodeResult {
   category: string;
   lowestPrice?: number;
   highestPrice?: number;
+  officialUrl?: string; // returned directly from a barcode DB (skips web search)
 }
 
 export interface LookupRequest {

@@ -59,6 +59,11 @@ export async function POST(request: NextRequest) {
       const result = await lookupBarcode(barcode);
       productInfo = result;
       console.log(`[lookup] barcode ${barcode} → "${productInfo.title}" by ${productInfo.brand}`);
+      // Open Food Facts may have returned the official URL directly — skip search
+      if (result.officialUrl) {
+        url = result.officialUrl;
+        console.log(`[lookup] official URL from barcode DB: ${url}`);
+      }
     } catch (e) {
       if (e instanceof BarcodeInvalidError) {
         return err(e.message, "BARCODE_INVALID", 422, "Check the barcode and try again.");
@@ -82,8 +87,9 @@ export async function POST(request: NextRequest) {
       return err("Barcode lookup failed.", "BARCODE_ERROR", 500);
     }
 
+    // Only search if we don't already have a URL from the barcode DB
     try {
-      url = await searchForOfficialPage(productInfo.title, productInfo.brand);
+      if (!url) url = await searchForOfficialPage(productInfo.title, productInfo.brand);
       console.log(`[lookup] search → ${url}`);
     } catch (e) {
       if (e instanceof SearchFailedError) {
