@@ -188,6 +188,21 @@ function incrementUpcUsage(): number {
   return next;
 }
 
+function EyeIcon({ open }: { open: boolean }) {
+  return open ? (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/>
+      <path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/>
+      <line x1="1" y1="1" x2="23" y2="23"/>
+    </svg>
+  ) : (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+  );
+}
+
 function ShopifyBagIcon({ size = 18, stroke = "currentColor" }: { size?: number; stroke?: string }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
@@ -212,6 +227,8 @@ export default function Home() {
   const [tavilyUsageLoading, setTavilyUsageLoading] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
   const [upcUsage, setUpcUsage] = useState(0);
+  const [showTavilyKey, setShowTavilyKey] = useState(false);
+  const [showShopifyToken, setShowShopifyToken] = useState(false);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const pastedHtmlRef = useRef<HTMLTextAreaElement>(null);
@@ -476,17 +493,22 @@ export default function Home() {
                     , 1,000/mo)
                   </span>
                 </label>
-                <input
-                  id="tavilyKey"
-                  type="password"
-                  value={tavilyKey}
-                  onChange={(e) => {
-                    setTavilyKey(e.target.value);
-                    localStorage.setItem(TAVILY_KEY_STORAGE, e.target.value);
-                  }}
-                  placeholder="tvly-..."
-                  className={`${inputCls} font-mono`}
-                />
+                <div className="relative">
+                  <input
+                    id="tavilyKey"
+                    type={showTavilyKey ? "text" : "password"}
+                    value={tavilyKey}
+                    onChange={(e) => {
+                      setTavilyKey(e.target.value);
+                      localStorage.setItem(TAVILY_KEY_STORAGE, e.target.value);
+                    }}
+                    placeholder="tvly-..."
+                    className={`${inputCls} font-mono pr-9`}
+                  />
+                  <button type="button" onClick={() => setShowTavilyKey((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <EyeIcon open={showTavilyKey} />
+                  </button>
+                </div>
                 <p className="text-xs text-gray-400 dark:text-gray-500">
                   Saved in your browser only — never sent anywhere except Tavily.
                 </p>
@@ -550,17 +572,22 @@ export default function Home() {
                   </a>
                   )
                 </label>
-                <input
-                  id="shopifyToken"
-                  type="password"
-                  value={shopifyToken}
-                  onChange={(e) => {
-                    setShopifyToken(e.target.value);
-                    localStorage.setItem(SHOPIFY_TOKEN_STORAGE, e.target.value);
-                  }}
-                  placeholder="shpat_..."
-                  className={`${inputCls} font-mono`}
-                />
+                <div className="relative">
+                  <input
+                    id="shopifyToken"
+                    type={showShopifyToken ? "text" : "password"}
+                    value={shopifyToken}
+                    onChange={(e) => {
+                      setShopifyToken(e.target.value);
+                      localStorage.setItem(SHOPIFY_TOKEN_STORAGE, e.target.value);
+                    }}
+                    placeholder="shpat_..."
+                    className={`${inputCls} font-mono pr-9`}
+                  />
+                  <button type="button" onClick={() => setShowShopifyToken((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <EyeIcon open={showShopifyToken} />
+                  </button>
+                </div>
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                   Saved in your browser only — never sent anywhere except your Shopify store.
                 </p>
