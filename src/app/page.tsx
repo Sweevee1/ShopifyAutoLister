@@ -387,9 +387,15 @@ export default function Home() {
           <button
             type="button"
             onClick={toggleDark}
-            className="text-xs px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="flex items-center gap-0.5 p-1 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 transition-colors"
+            aria-label="Toggle dark mode"
           >
-            {darkMode ? "Light" : "Dark"}
+            <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${!darkMode ? "bg-white dark:bg-gray-900 text-gray-800 shadow-sm" : "text-gray-400 dark:text-gray-500"}`}>
+              ☀ Light
+            </span>
+            <span className={`flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all ${darkMode ? "bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 shadow-sm" : "text-gray-400 dark:text-gray-500"}`}>
+              ☾ Dark
+            </span>
           </button>
         </header>
 
