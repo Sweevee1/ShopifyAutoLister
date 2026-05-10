@@ -814,7 +814,7 @@ export default function Home() {
                         disabled={!shopifyPhase.title.trim() || !shopifyPhase.price.trim()}
                         className="px-4 py-2 text-sm bg-[#008060] hover:bg-[#006e52] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                       >
-                        Review &amp; Confirm →
+                        Review →
                       </button>
                     </div>
                   </div>
