@@ -58,7 +58,10 @@
       "PowerShell(Select-String *)",
       "PowerShell(ollama ps *)",
       "Bash(Get-Content \"C:\\\\Users\\\\Luke\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\A--Coding-ShopifyAutoLister\\\\6cf5a08b-8673-421e-9f4a-ca8273a7d0a5\\\\tasks\\\\ballxnsto.output\" -Wait)",
-      "Bash(Select-String --line-buffered \"ready|error|Error|failed|localhost\")"
+      "Bash(Select-String --line-buffered \"ready|error|Error|failed|localhost\")",
+      "WebFetch(domain:docs.tavily.com)",
+      "Bash(New-Item -ItemType Directory -Force -Path \"A:\\\\Coding\\\\ShopifyAutoLister\\\\src\\\\app\\\\api\\\\tavily-usage\")",
+      "Bash(Out-Null)"
     ]
   }
 }

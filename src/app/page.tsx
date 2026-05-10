@@ -162,6 +162,8 @@ export default function Home() {
   const [shopifyDomain, setShopifyDomain] = useState("");
   const [shopifyToken, setShopifyToken] = useState("");
   const [shopifyPhase, setShopifyPhase] = useState<ShopifyPhase>({ phase: "idle" });
+  const [tavilyUsage, setTavilyUsage] = useState<{ used: number; limit: number } | null>(null);
+  const [tavilyUsageLoading, setTavilyUsageLoading] = useState(false);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const pastedHtmlRef = useRef<HTMLTextAreaElement>(null);
@@ -175,6 +177,27 @@ export default function Home() {
     setShopifyDomain(localStorage.getItem(SHOPIFY_DOMAIN_STORAGE) ?? "");
     setShopifyToken(localStorage.getItem(SHOPIFY_TOKEN_STORAGE) ?? "");
   }, []);
+
+  async function fetchTavilyUsage(key: string) {
+    if (!key) return;
+    setTavilyUsageLoading(true);
+    setTavilyUsage(null);
+    try {
+      const res = await fetch("/api/tavily-usage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key }),
+      });
+      const json = await res.json();
+      if (res.ok) {
+        const used = json.key?.total_usage ?? json.key?.totalUsage ?? 0;
+        const limit = json.key?.limit ?? json.account?.monthly_limit ?? 1000;
+        setTavilyUsage({ used, limit });
+      }
+    } finally {
+      setTavilyUsageLoading(false);
+    }
+  }
 
   function toggleDark() {
     const next = !darkMode;
@@ -341,7 +364,11 @@ export default function Home() {
         <div className={`${card} mb-4 overflow-hidden`}>
           <button
             type="button"
-            onClick={() => setSettingsOpen((o) => !o)}
+            onClick={() => {
+              const next = !settingsOpen;
+              setSettingsOpen(next);
+              if (next && tavilyKey) fetchTavilyUsage(tavilyKey);
+            }}
             className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
           >
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Settings</span>
@@ -396,6 +423,36 @@ export default function Home() {
                 <p className="text-xs text-gray-400 dark:text-gray-500">
                   Saved in your browser only — never sent anywhere except Tavily.
                 </p>
+
+                {tavilyKey && (
+                  <div className="mt-1">
+                    {tavilyUsageLoading ? (
+                      <p className="text-xs text-gray-400 dark:text-gray-500">Checking usage…</p>
+                    ) : tavilyUsage ? (
+                      <div className="flex flex-col gap-1.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            <span className="font-medium text-gray-700 dark:text-gray-200">{tavilyUsage.used.toLocaleString()}</span>
+                            {" / "}{tavilyUsage.limit.toLocaleString()} searches this month
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => fetchTavilyUsage(tavilyKey)}
+                            className="text-xs text-[#008060] hover:underline"
+                          >
+                            Refresh
+                          </button>
+                        </div>
+                        <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-[#008060] rounded-full transition-all duration-500"
+                            style={{ width: `${Math.min(100, (tavilyUsage.used / tavilyUsage.limit) * 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-1.5 pt-3 border-t border-gray-100 dark:border-gray-800">
