@@ -190,8 +190,8 @@ export default function Home() {
       });
       const json = await res.json();
       if (res.ok) {
-        const used = json.key?.total_usage ?? json.key?.totalUsage ?? 0;
-        const limit = json.key?.limit ?? json.account?.monthly_limit ?? 1000;
+        const used = json.account?.plan_usage ?? 0;
+        const limit = json.account?.plan_limit ?? 1000;
         setTavilyUsage({ used, limit });
       }
     } finally {
