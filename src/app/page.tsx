@@ -167,6 +167,26 @@ const TAVILY_KEY_STORAGE = "tavily_api_key";
 const DARK_MODE_STORAGE = "dark_mode";
 const SHOPIFY_DOMAIN_STORAGE = "shopify_store_domain";
 const SHOPIFY_TOKEN_STORAGE = "shopify_admin_token";
+const UPC_USAGE_STORAGE = "upc_usage";
+const UPC_DAILY_LIMIT = 100;
+
+function loadUpcUsage(): number {
+  try {
+    const raw = localStorage.getItem(UPC_USAGE_STORAGE);
+    if (!raw) return 0;
+    const { count, date } = JSON.parse(raw) as { count: number; date: string };
+    return date === new Date().toISOString().slice(0, 10) ? count : 0;
+  } catch { return 0; }
+}
+
+function incrementUpcUsage(): number {
+  const next = loadUpcUsage() + 1;
+  localStorage.setItem(UPC_USAGE_STORAGE, JSON.stringify({
+    count: next,
+    date: new Date().toISOString().slice(0, 10),
+  }));
+  return next;
+}
 
 function ShopifyBagIcon({ size = 18, stroke = "currentColor" }: { size?: number; stroke?: string }) {
   return (
@@ -191,6 +211,7 @@ export default function Home() {
   const [tavilyUsage, setTavilyUsage] = useState<{ used: number; limit: number } | null>(null);
   const [tavilyUsageLoading, setTavilyUsageLoading] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
+  const [upcUsage, setUpcUsage] = useState(0);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const pastedHtmlRef = useRef<HTMLTextAreaElement>(null);
@@ -203,6 +224,7 @@ export default function Home() {
     setDarkMode(savedDark);
     setShopifyDomain(localStorage.getItem(SHOPIFY_DOMAIN_STORAGE) ?? "");
     setShopifyToken(localStorage.getItem(SHOPIFY_TOKEN_STORAGE) ?? "");
+    setUpcUsage(loadUpcUsage());
   }, []);
 
   async function fetchTavilyUsage(key: string) {
@@ -250,6 +272,7 @@ export default function Home() {
     setAppState({ phase: "loading", stepIndex: 0 });
     setShopifyPhase({ phase: "idle" });
     setDemoMode(false);
+    if (barcode.trim()) setUpcUsage(incrementUpcUsage());
 
     let currentStep = 0;
     stepTimerRef.current = setInterval(() => {
@@ -541,6 +564,26 @@ export default function Home() {
                 <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
                   Saved in your browser only — never sent anywhere except your Shopify store.
                 </p>
+              </div>
+
+              {/* Barcode API usage */}
+              <div className="flex flex-col gap-1.5 pt-3 border-t border-gray-100 dark:border-gray-800">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Barcode lookup</p>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">UPC Item DB · resets daily</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">
+                    <span className="font-medium text-gray-700 dark:text-gray-200">{upcUsage}</span>
+                    {" / "}{UPC_DAILY_LIMIT} requests today
+                  </span>
+                </div>
+                <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${upcUsage >= UPC_DAILY_LIMIT ? "bg-red-500" : upcUsage >= UPC_DAILY_LIMIT * 0.8 ? "bg-amber-500" : "bg-[#008060]"}`}
+                    style={{ width: `${Math.min(100, (upcUsage / UPC_DAILY_LIMIT) * 100)}%` }}
+                  />
+                </div>
               </div>
             </div>
           )}
