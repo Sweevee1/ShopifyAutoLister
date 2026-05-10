@@ -12,8 +12,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body className="bg-gray-50 min-h-screen">{children}</body>
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `try{if(localStorage.getItem('dark_mode')==='true')document.documentElement.classList.add('dark')}catch(e){}` }} />
+      </head>
+      <body className="bg-gray-50 dark:bg-gray-950 min-h-screen">{children}</body>
     </html>
   );
 }
