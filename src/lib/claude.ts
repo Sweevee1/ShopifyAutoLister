@@ -1,5 +1,8 @@
-import Anthropic from "@anthropic-ai/sdk";
+import axios from "axios";
 import type { BarcodeResult } from "@/types";
+
+const OLLAMA_BASE = process.env.OLLAMA_HOST ?? "http://localhost:11434";
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3-vl:30b";
 
 const SYSTEM_PROMPT = `You are a Shopify product description specialist writing for an Australian online retailer.
 
@@ -37,11 +40,11 @@ REQUIRED HTML STRUCTURE:
 
 [Purchase limit paragraph ONLY if official page mentions one. Otherwise omit entirely.]
 
-OUTPUT FORMAT — respond with ONLY valid JSON, no markdown fences, no extra text:
+OUTPUT FORMAT — respond with ONLY valid JSON, no markdown fences, no extra text, no thinking tags:
 { "html": "...", "price": "AUD $XX.XX", "altText": "..." }
 
-If price cannot be determined from the content: "price": "Price not found — check official site"
-If a section has no applicable content, omit that section entirely rather than leaving it empty.`;
+If price cannot be determined: "price": "Price not found — check official site"
+If a section has no applicable content, omit that section entirely.`;
 
 interface ClaudeOutput {
   html: string;
@@ -49,12 +52,19 @@ interface ClaudeOutput {
   altText: string;
 }
 
+function extractJson(text: string): string {
+  // Strip Qwen3 thinking blocks: <think>...</think>
+  const stripped = text.replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  // Extract first JSON object
+  const match = stripped.match(/\{[\s\S]*\}/);
+  if (!match) throw new Error("No JSON object found in model response.");
+  return match[0];
+}
+
 export async function generateDescription(
   scrapedContent: string,
   productInfo: Pick<BarcodeResult, "title" | "brand" | "category">
 ): Promise<ClaudeOutput> {
-  const client = new Anthropic();
-
   const isDerived = productInfo.title === "(derive from page)";
   const productLine = isDerived
     ? "Product name: (derive from the page content below)"
@@ -70,33 +80,42 @@ export async function generateDescription(
     scrapedContent,
     "---",
     "",
-    "Generate the Shopify description following your system rules exactly.",
+    "Generate the Shopify description following your system rules exactly. Output only JSON.",
   ]
     .filter((l) => l !== null)
     .join("\n");
 
-  const response = await client.messages.create({
-    model: "claude-sonnet-4-6",
-    max_tokens: 1024,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: userMessage }],
-  });
-
-  const block = response.content[0];
-  if (block.type !== "text") {
-    throw new Error("Unexpected response type from Claude.");
-  }
-
-  let parsed: ClaudeOutput;
+  let responseText: string;
   try {
-    parsed = JSON.parse(block.text);
-  } catch {
-    const match = block.text.match(/\{[\s\S]*\}/);
-    if (!match) {
-      throw new Error("Could not parse Claude response as JSON.");
+    const res = await axios.post(
+      `${OLLAMA_BASE}/api/chat`,
+      {
+        model: OLLAMA_MODEL,
+        stream: false,
+        format: "json",
+        options: { temperature: 0.3 },
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: userMessage },
+        ],
+      },
+      { timeout: 120_000 }
+    );
+    responseText = res.data?.message?.content ?? "";
+  } catch (err: unknown) {
+    if (axios.isAxiosError(err)) {
+      throw new Error(
+        `Ollama request failed (is Ollama running?): ${err.message}`
+      );
     }
-    parsed = JSON.parse(match[0]);
+    throw err;
   }
 
-  return parsed;
+  try {
+    return JSON.parse(extractJson(responseText)) as ClaudeOutput;
+  } catch {
+    throw new Error(
+      `Could not parse model response as JSON. Raw output: ${responseText.slice(0, 200)}`
+    );
+  }
 }
