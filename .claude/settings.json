@@ -1,0 +1,28 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git pull --rebase 2>/dev/null || true",
+            "shell": "bash",
+            "statusMessage": "Pulling latest from GitHub..."
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "git add -A && git diff --cached --quiet || (git commit -m \"Auto-save from Claude Code session\" && git push)",
+            "shell": "bash",
+            "statusMessage": "Saving changes to GitHub..."
+          }
+        ]
+      }
+    ]
+  }
+}

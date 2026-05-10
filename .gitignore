@@ -26,3 +26,6 @@ Thumbs.db
 
 # Cursor local metadata
 .cursor/
+
+# Claude Code local-only settings (machine-specific permissions)
+.claude/settings.local.json
