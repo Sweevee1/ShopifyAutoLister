@@ -33,6 +33,18 @@ export interface LookupError {
   brand?: string;
 }
 
+export interface ShopifyPushPayload {
+  title: string;
+  bodyHtml: string;
+  price: string;
+  altText: string;
+}
+
+export interface ShopifyPushResult {
+  productId: number;
+  productUrl: string;
+}
+
 export type StepStatus = "idle" | "loading" | "done" | "error";
 
 export interface PipelineStep {

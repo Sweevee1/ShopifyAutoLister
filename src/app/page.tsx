@@ -17,6 +17,19 @@ type AppState =
   | { phase: "success"; data: LookupResponse }
   | { phase: "error"; data: LookupError; attemptedUrl?: string };
 
+type ShopifyPhase =
+  | { phase: "idle" }
+  | { phase: "editing"; title: string; price: string }
+  | { phase: "confirming"; title: string; price: string }
+  | { phase: "pushing" }
+  | { phase: "done"; productUrl: string }
+  | { phase: "error"; message: string };
+
+function extractPrice(priceStr: string): string {
+  const match = priceStr.match(/\$(\d+(?:\.\d+)?)/);
+  return match ? match[1] : "";
+}
+
 function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [copied, setCopied] = useState(false);
 
@@ -122,6 +135,8 @@ function buildCopyPack(data: LookupResponse): string {
 
 const TAVILY_KEY_STORAGE = "tavily_api_key";
 const DARK_MODE_STORAGE = "dark_mode";
+const SHOPIFY_DOMAIN_STORAGE = "shopify_store_domain";
+const SHOPIFY_TOKEN_STORAGE = "shopify_admin_token";
 
 export default function Home() {
   const [barcode, setBarcode] = useState("");
@@ -131,6 +146,9 @@ export default function Home() {
   const [tavilyKey, setTavilyKey] = useState("");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
+  const [shopifyDomain, setShopifyDomain] = useState("");
+  const [shopifyToken, setShopifyToken] = useState("");
+  const [shopifyPhase, setShopifyPhase] = useState<ShopifyPhase>({ phase: "idle" });
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const pastedHtmlRef = useRef<HTMLTextAreaElement>(null);
@@ -141,6 +159,8 @@ export default function Home() {
     setSettingsOpen(!savedKey);
     const savedDark = localStorage.getItem(DARK_MODE_STORAGE) === "true";
     setDarkMode(savedDark);
+    setShopifyDomain(localStorage.getItem(SHOPIFY_DOMAIN_STORAGE) ?? "");
+    setShopifyToken(localStorage.getItem(SHOPIFY_TOKEN_STORAGE) ?? "");
   }, []);
 
   function toggleDark() {
@@ -165,6 +185,7 @@ export default function Home() {
 
     clearStepTimer();
     setAppState({ phase: "loading", stepIndex: 0 });
+    setShopifyPhase({ phase: "idle" });
 
     let currentStep = 0;
     stepTimerRef.current = setInterval(() => {
@@ -249,6 +270,33 @@ export default function Home() {
     }
   }
 
+  async function handleShopifyPush(title: string, price: string) {
+    if (appState.phase !== "success") return;
+    setShopifyPhase({ phase: "pushing" });
+    try {
+      const res = await fetch("/api/shopify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          domain: shopifyDomain,
+          token: shopifyToken,
+          title,
+          bodyHtml: appState.data.html,
+          price,
+          altText: appState.data.altText,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setShopifyPhase({ phase: "error", message: json.error ?? "Unknown error" });
+      } else {
+        setShopifyPhase({ phase: "done", productUrl: json.productUrl });
+      }
+    } catch {
+      setShopifyPhase({ phase: "error", message: "Network error — could not reach the server." });
+    }
+  }
+
   const needsFallbackHelp =
     appState.phase === "error" &&
     ERROR_CODES_NEEDING_FALLBACK.has(appState.data.errorCode);
@@ -281,7 +329,7 @@ export default function Home() {
         >
           <span>Settings</span>
           <span className="text-gray-400 dark:text-gray-500 text-xs">
-            {tavilyKey ? "Tavily key saved" : "No Tavily key"} {settingsOpen ? "▲" : "▼"}
+            {tavilyKey ? "Tavily key saved" : "No Tavily key"} · {shopifyDomain && shopifyToken ? "Shopify connected" : "Shopify not configured"} {settingsOpen ? "▲" : "▼"}
           </span>
         </button>
         {settingsOpen && (
@@ -310,6 +358,47 @@ export default function Home() {
             <p className="text-xs text-gray-400 dark:text-gray-500">
               Saved in your browser only — never sent anywhere except Tavily during searches.
             </p>
+
+            <div className="border-t border-gray-100 dark:border-gray-700 mt-2 pt-3 flex flex-col gap-2">
+              <label htmlFor="shopifyDomain" className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Shopify store domain
+                <span className="text-gray-400 dark:text-gray-500 font-normal ml-1">
+                  — (
+                  <a href="https://shopify.dev/docs/apps/build/authentication-authorization/access-token/generate-app-access-tokens-admin" target="_blank" rel="noopener noreferrer" className="underline">
+                    create an Admin API token
+                  </a>
+                  )
+                </span>
+              </label>
+              <input
+                id="shopifyDomain"
+                type="text"
+                value={shopifyDomain}
+                onChange={(e) => {
+                  setShopifyDomain(e.target.value);
+                  localStorage.setItem(SHOPIFY_DOMAIN_STORAGE, e.target.value);
+                }}
+                placeholder="my-store.myshopify.com"
+                className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <label htmlFor="shopifyToken" className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Shopify Admin API token
+              </label>
+              <input
+                id="shopifyToken"
+                type="password"
+                value={shopifyToken}
+                onChange={(e) => {
+                  setShopifyToken(e.target.value);
+                  localStorage.setItem(SHOPIFY_TOKEN_STORAGE, e.target.value);
+                }}
+                placeholder="shpat_..."
+                className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-gray-400 dark:text-gray-500">
+                Saved in your browser only — never sent anywhere except your Shopify store.
+              </p>
+            </div>
           </div>
         )}
       </div>
@@ -507,6 +596,141 @@ export default function Home() {
               </p>
               <CopyButton text={appState.data.altText} />
             </div>
+          </div>
+
+          {/* Shopify Push Panel */}
+          <div className="border border-gray-200 dark:border-gray-700 rounded-md p-4">
+            <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500 mb-3">Push to Shopify</p>
+
+            {!shopifyDomain || !shopifyToken ? (
+              <p className="text-sm text-gray-400 dark:text-gray-500">
+                Add Shopify credentials in Settings to enable pushing.
+              </p>
+            ) : shopifyPhase.phase === "idle" ? (
+              <button
+                type="button"
+                onClick={() => setShopifyPhase({
+                  phase: "editing",
+                  title: appState.data.productName,
+                  price: extractPrice(appState.data.price),
+                })}
+                className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 transition-colors"
+              >
+                Push to Shopify as Draft
+              </button>
+            ) : shopifyPhase.phase === "editing" ? (
+              <div className="flex flex-col gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Product Title</label>
+                  <input
+                    type="text"
+                    value={shopifyPhase.title}
+                    onChange={(e) => setShopifyPhase({ phase: "editing", title: e.target.value, price: (shopifyPhase as { phase: "editing"; title: string; price: string }).price })}
+                    className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">Price (AUD)</label>
+                  <input
+                    type="text"
+                    value={shopifyPhase.price}
+                    onChange={(e) => setShopifyPhase({ phase: "editing", title: (shopifyPhase as { phase: "editing"; title: string; price: string }).title, price: e.target.value })}
+                    placeholder="49.99"
+                    className="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-md px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShopifyPhase({ phase: "idle" })}
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (shopifyPhase.phase === "editing") {
+                        setShopifyPhase({ phase: "confirming", title: shopifyPhase.title, price: shopifyPhase.price });
+                      }
+                    }}
+                    disabled={!shopifyPhase.title.trim() || !shopifyPhase.price.trim()}
+                    className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Review &amp; Confirm →
+                  </button>
+                </div>
+              </div>
+            ) : shopifyPhase.phase === "confirming" ? (
+              <div className="flex flex-col gap-3">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-md p-3 text-sm">
+                  <p className="font-medium text-gray-700 dark:text-gray-200 mb-1">Push to Shopify as draft?</p>
+                  <p className="text-gray-600 dark:text-gray-400">Title: <span className="font-medium text-gray-900 dark:text-gray-100">&ldquo;{shopifyPhase.title}&rdquo;</span></p>
+                  <p className="text-gray-600 dark:text-gray-400">Price: <span className="font-medium text-gray-900 dark:text-gray-100">${shopifyPhase.price} AUD</span></p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (shopifyPhase.phase === "confirming") {
+                        setShopifyPhase({ phase: "editing", title: shopifyPhase.title, price: shopifyPhase.price });
+                      }
+                    }}
+                    className="px-3 py-1.5 text-sm border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    &larr; Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (shopifyPhase.phase === "confirming") {
+                        handleShopifyPush(shopifyPhase.title, shopifyPhase.price);
+                      }
+                    }}
+                    className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                  >
+                    ✓ Confirm Push
+                  </button>
+                </div>
+              </div>
+            ) : shopifyPhase.phase === "pushing" ? (
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+                <span className="w-4 h-4 border-2 border-green-500 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                Creating draft product...
+              </div>
+            ) : shopifyPhase.phase === "done" ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm font-medium text-green-700 dark:text-green-400">✓ Draft created!</p>
+                <div className="flex gap-2">
+                  <a
+                    href={shopifyPhase.productUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm px-3 py-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                  >
+                    View in Shopify Admin ↗
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => setShopifyPhase({ phase: "idle" })}
+                    className="text-sm px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                  >
+                    Push again
+                  </button>
+                </div>
+              </div>
+            ) : shopifyPhase.phase === "error" ? (
+              <div className="flex flex-col gap-2">
+                <p className="text-sm text-red-600 dark:text-red-400">{shopifyPhase.message}</p>
+                <button
+                  type="button"
+                  onClick={() => setShopifyPhase({ phase: "idle" })}
+                  className="self-start text-sm px-3 py-1.5 border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : null}
           </div>
 
           <button
