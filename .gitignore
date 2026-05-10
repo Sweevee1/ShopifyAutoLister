@@ -12,6 +12,8 @@ node_modules/
 dist/
 build/
 coverage/
+.next/
+out/
 
 # Python caches
 __pycache__/
