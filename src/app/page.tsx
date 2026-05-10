@@ -319,6 +319,7 @@ export default function Home() {
               phase: "success",
               data: { html: msg.html, price: msg.price, altText: msg.altText, sourceUrl, productName },
             });
+            setShopifyPhase({ phase: "editing", title: productName, price: extractPrice(msg.price) });
           } else if (msg.type === "error") {
             setAppState({ phase: "error", data: { error: msg.error, errorCode: msg.errorCode } });
           }
@@ -622,7 +623,7 @@ export default function Home() {
             type="button"
             onClick={() => {
               setDemoMode(true);
-              setShopifyPhase({ phase: "idle" });
+              setShopifyPhase({ phase: "editing", title: DEMO_DATA.productName, price: extractPrice(DEMO_DATA.price) });
               setAppState({ phase: "success", data: DEMO_DATA });
             }}
             className="mt-3 w-full py-2 text-sm text-gray-400 dark:text-gray-500 hover:text-[#008060] dark:hover:text-[#008060] border border-dashed border-gray-200 dark:border-gray-700 hover:border-[#008060] rounded-lg transition-colors"
@@ -774,18 +775,6 @@ export default function Home() {
                     </button>{" "}
                     to enable pushing.
                   </p>
-                ) : shopifyPhase.phase === "idle" ? (
-                  <button
-                    type="button"
-                    onClick={() => setShopifyPhase({
-                      phase: "editing",
-                      title: appState.data.productName,
-                      price: extractPrice(appState.data.price),
-                    })}
-                    className="px-4 py-2 bg-[#008060] hover:bg-[#006e52] text-white text-sm font-medium rounded-lg transition-colors"
-                  >
-                    Push as Draft Product
-                  </button>
                 ) : shopifyPhase.phase === "editing" ? (
                   <div className="flex flex-col gap-3">
                     <div>
@@ -893,7 +882,7 @@ export default function Home() {
                       </a>
                       <button
                         type="button"
-                        onClick={() => setShopifyPhase({ phase: "idle" })}
+                        onClick={() => setShopifyPhase({ phase: "editing", title: appState.data.productName, price: extractPrice(appState.data.price) })}
                         className="text-sm px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       >
                         Push again
