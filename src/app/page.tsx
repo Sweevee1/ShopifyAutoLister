@@ -223,10 +223,31 @@ export default function Home() {
       )}
 
       {appState.phase === "error" && (
-        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md">
+        <div className="mt-6 p-4 bg-red-50 border border-red-200 rounded-md space-y-2">
           <p className="text-sm font-medium text-red-800">{appState.data.error}</p>
           {appState.data.hint && (
-            <p className="text-sm text-red-600 mt-1">{appState.data.hint}</p>
+            <p className="text-sm text-red-600">{appState.data.hint}</p>
+          )}
+          {appState.data.errorCode === "SEARCH_FAILED" && appState.data.productName && (
+            <div className="pt-1">
+              <p className="text-xs text-gray-500 mb-1">
+                Found product: <strong>{appState.data.productName}</strong>
+                {appState.data.brand ? ` by ${appState.data.brand}` : ""}
+              </p>
+              <a
+                href={`https://www.google.com/search?q=${encodeURIComponent(
+                  `${appState.data.brand ?? ""} ${appState.data.productName} official site`.trim()
+                )}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700"
+              >
+                Search Google for official page →
+              </a>
+              <p className="text-xs text-gray-400 mt-1">
+                Then paste the URL above and click Look Up again.
+              </p>
+            </div>
           )}
         </div>
       )}

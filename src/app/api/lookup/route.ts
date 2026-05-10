@@ -23,9 +23,10 @@ function err(
   error: string,
   errorCode: string,
   status: number,
-  hint?: string
+  hint?: string,
+  extra?: Record<string, unknown>
 ) {
-  return NextResponse.json({ error, errorCode, hint }, { status });
+  return NextResponse.json({ error, errorCode, hint, ...extra }, { status });
 }
 
 export async function POST(request: NextRequest) {
@@ -90,7 +91,11 @@ export async function POST(request: NextRequest) {
           e.message,
           "SEARCH_FAILED",
           404,
-          "Paste the official product page URL below and try again."
+          "Paste the official product page URL below and try again.",
+          {
+            productName: e.productName ?? productInfo.title,
+            brand: e.brand ?? productInfo.brand,
+          }
         );
       }
       return err("Search failed.", "SEARCH_ERROR", 500);

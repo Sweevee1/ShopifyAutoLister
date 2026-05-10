@@ -37,7 +37,8 @@
       "Bash(Test-Path *)",
       "Bash(npm run *)",
       "Bash(Remove-Item *)",
-      "Bash(pkill -f \"next dev\")"
+      "Bash(pkill -f \"next dev\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); results=d.get\\('results',[]\\); print\\(f'{len\\(results\\)} results'\\); [print\\(r['url']\\) for r in results[:5]]\")"
     ]
   }
 }

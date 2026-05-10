@@ -23,6 +23,8 @@ export interface LookupError {
   error: string;
   errorCode: string;
   hint?: string;
+  productName?: string;
+  brand?: string;
 }
 
 export type StepStatus = "idle" | "loading" | "done" | "error";

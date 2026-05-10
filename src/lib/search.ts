@@ -1,5 +1,4 @@
 import axios from "axios";
-import * as cheerio from "cheerio";
 
 const USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
@@ -42,79 +41,71 @@ function isDenied(url: string): boolean {
   return DENYLIST.some((domain) => url.includes(domain));
 }
 
-function extractDdgUrl(href: string): string | null {
-  try {
-    // DDG redirect: //duckduckgo.com/l/?uddg=<encoded>&rut=...
-    const qs = href.includes("?") ? href.split("?")[1] : href;
-    const params = new URLSearchParams(qs);
-    const uddg = params.get("uddg");
-    if (uddg) return decodeURIComponent(uddg);
-
-    // Fallback: if href is already an absolute URL
-    if (href.startsWith("http")) return href;
-  } catch {
-    // ignore
-  }
-  return null;
-}
-
 export class SearchFailedError extends Error {
   code = "SEARCH_FAILED";
+  productName?: string;
+  brand?: string;
+
+  constructor(message: string, productName?: string, brand?: string) {
+    super(message);
+    this.productName = productName;
+    this.brand = brand;
+  }
 }
 
 export async function searchForOfficialPage(
   productName: string,
   brand: string
 ): Promise<string> {
-  const query = encodeURIComponent(`${brand} ${productName} official site`.trim());
+  const apiKey = process.env.BRAVE_SEARCH_API_KEY;
 
-  let html: string;
+  if (!apiKey) {
+    throw new SearchFailedError(
+      `No search API configured. Paste the official product page URL below.`,
+      productName,
+      brand
+    );
+  }
+
+  const query = `${brand} ${productName}`.trim();
+
+  let results: Array<{ url: string }> = [];
   try {
     const res = await axios.get(
-      `https://html.duckduckgo.com/html/?q=${query}`,
+      "https://api.search.brave.com/res/v1/web/search",
       {
         headers: {
+          Accept: "application/json",
+          "Accept-Encoding": "gzip",
+          "X-Subscription-Token": apiKey,
           "User-Agent": USER_AGENT,
-          Accept: "text/html,application/xhtml+xml",
-          "Accept-Language": "en-AU,en;q=0.9",
         },
-        timeout: 12_000,
+        params: { q: query, count: 5, country: "AU" },
+        timeout: 10_000,
       }
     );
-    html = res.data as string;
+    results = res.data?.web?.results ?? [];
   } catch (err: unknown) {
     if (axios.isAxiosError(err)) {
-      throw new SearchFailedError(`Search request failed: ${err.message}`);
+      throw new SearchFailedError(
+        `Search failed: ${err.response?.status ?? err.message}. Paste the official product page URL below.`,
+        productName,
+        brand
+      );
     }
     throw err;
   }
 
-  const $ = cheerio.load(html);
-  const urls: string[] = [];
-
-  // Primary selector: result links
-  $("a.result__a, a[href*='uddg=']").each((_, el) => {
-    const href = $(el).attr("href") ?? "";
-    const url = extractDdgUrl(href);
-    if (url && url.startsWith("http")) urls.push(url);
-  });
-
-  // Fallback: scan every <a> for uddg param
-  if (urls.length === 0) {
-    $("a").each((_, el) => {
-      const href = $(el).attr("href") ?? "";
-      if (!href.includes("uddg=")) return;
-      const url = extractDdgUrl(href);
-      if (url && url.startsWith("http")) urls.push(url);
-    });
-  }
-
-  if (urls.length === 0) {
+  if (results.length === 0) {
     throw new SearchFailedError(
-      `No search results found for "${productName}". Paste the official product page URL below.`
+      `No results found for "${query}". Paste the official product page URL below.`,
+      productName,
+      brand
     );
   }
 
-  const preferred = urls.find((u) => !isDenied(u));
-  return preferred ?? urls[0];
+  const preferred = results.find((r) => !isDenied(r.url));
+  const chosen = (preferred ?? results[0]).url;
+  console.log(`[search] → ${chosen}`);
+  return chosen;
 }
