@@ -152,7 +152,7 @@ export async function generateDescription(
           { role: "user", content: parts },
         ],
       },
-      { timeout: 120_000 }
+      { timeout: 300_000 }
     );
     responseText = res.data?.message?.content ?? "";
   } catch (err: unknown) {
