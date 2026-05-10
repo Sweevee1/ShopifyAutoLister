@@ -676,13 +676,19 @@ export default function Home() {
           <button
             type="button"
             onClick={() => {
-              setDemoMode(true);
-              setShopifyPhase({ phase: "editing", title: DEMO_DATA.productName, price: extractPrice(DEMO_DATA.price) });
-              setAppState({ phase: "success", data: DEMO_DATA });
+              if (demoMode) {
+                setDemoMode(false);
+                setAppState({ phase: "idle" });
+                setShopifyPhase({ phase: "idle" });
+              } else {
+                setDemoMode(true);
+                setShopifyPhase({ phase: "editing", title: DEMO_DATA.productName, price: extractPrice(DEMO_DATA.price) });
+                setAppState({ phase: "success", data: DEMO_DATA });
+              }
             }}
             className="mt-3 w-full py-2 text-sm text-gray-400 dark:text-gray-500 hover:text-[#008060] dark:hover:text-[#008060] border border-dashed border-gray-200 dark:border-gray-700 hover:border-[#008060] rounded-lg transition-colors"
           >
-            Load demo output
+            {demoMode ? "Unload demo output" : "Load demo output"}
           </button>
         </div>
 
