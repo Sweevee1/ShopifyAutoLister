@@ -43,7 +43,9 @@
       "Bash(npm uninstall *)",
       "Bash(ollama pull *)",
       "PowerShell(Get-Process *)",
-      "Bash(echo \"Started PID $!\")"
+      "Bash(echo \"Started PID $!\")",
+      "PowerShell(Get-Command *)",
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\" -Directory | Where-Object { $_.Name -match 'node' }; Get-ChildItem \"C:\\\\Program Files \\(x86\\)\" -Directory | Where-Object { $_.Name -match 'node' }; Test-Path \"C:\\\\Users\\\\lukes\\\\AppData\\\\Roaming\\\\nvm\"; Get-ChildItem \"C:\\\\Users\\\\lukes\" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'node|nvm' })"
     ]
   }
 }
