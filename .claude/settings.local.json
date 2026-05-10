@@ -45,7 +45,11 @@
       "PowerShell(Get-Process *)",
       "Bash(echo \"Started PID $!\")",
       "PowerShell(Get-Command *)",
-      "PowerShell(Get-ChildItem \"C:\\\\Program Files\" -Directory | Where-Object { $_.Name -match 'node' }; Get-ChildItem \"C:\\\\Program Files \\(x86\\)\" -Directory | Where-Object { $_.Name -match 'node' }; Test-Path \"C:\\\\Users\\\\lukes\\\\AppData\\\\Roaming\\\\nvm\"; Get-ChildItem \"C:\\\\Users\\\\lukes\" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'node|nvm' })"
+      "PowerShell(Get-ChildItem \"C:\\\\Program Files\" -Directory | Where-Object { $_.Name -match 'node' }; Get-ChildItem \"C:\\\\Program Files \\(x86\\)\" -Directory | Where-Object { $_.Name -match 'node' }; Test-Path \"C:\\\\Users\\\\lukes\\\\AppData\\\\Roaming\\\\nvm\"; Get-ChildItem \"C:\\\\Users\\\\lukes\" -Directory -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'node|nvm' })",
+      "PowerShell(npm run *)",
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;$env:PATH\"; Set-Location \"C:\\\\Users\\\\lukes\\\\Documents\\\\Coding\\\\ShopifyAutoLister\"; & \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" run dev)",
+      "PowerShell($env:PATH = \"C:\\\\Program Files\\\\nodejs;$env:PATH\"; Set-Location \"C:\\\\Users\\\\lukes\\\\Documents\\\\Coding\\\\ShopifyAutoLister\"; & \"C:\\\\Program Files\\\\nodejs\\\\npm.cmd\" install)",
+      "PowerShell(Start-Process \"http://localhost:3000\")"
     ]
   }
 }
