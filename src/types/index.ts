@@ -9,6 +9,7 @@ export interface BarcodeResult {
 
 export interface LookupRequest {
   barcode?: string;
+  sku?: string;
   manualUrl?: string;
   /** Saved / View Source HTML from the official product page — bypasses HTTP scrape when non-empty */
   manualHtml?: string;

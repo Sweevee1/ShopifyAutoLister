@@ -214,6 +214,7 @@ function ShopifyBagIcon({ size = 18, stroke = "currentColor" }: { size?: number;
 
 export default function Home() {
   const [barcode, setBarcode] = useState("");
+  const [sku, setSku] = useState("");
   const [manualUrl, setManualUrl] = useState("");
   const [manualHtml, setManualHtml] = useState("");
   const [appState, setAppState] = useState<AppState>({ phase: "idle" });
@@ -297,7 +298,7 @@ export default function Home() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!barcode.trim() && !manualUrl.trim() && !manualHtml.trim()) return;
+    if (!barcode.trim() && !sku.trim() && !manualUrl.trim() && !manualHtml.trim()) return;
 
     clearStepTimer();
     setAppState({ phase: "loading", stepIndex: 0 });
@@ -321,6 +322,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           barcode: barcode.trim() || undefined,
+          sku: sku.trim() || undefined,
           manualUrl: manualUrl.trim() || undefined,
           manualHtml: manualHtml.trim() || undefined,
           tavilyApiKey: tavilyKey.trim() || undefined,
@@ -645,21 +647,37 @@ export default function Home() {
         {/* Form */}
         <div className={`${card} p-5 mb-4`}>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label htmlFor="barcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Barcode{" "}
-                <span className="text-gray-400 dark:text-gray-500 font-normal text-xs">UPC / EAN / ISBN</span>
-              </label>
-              <input
-                id="barcode"
-                type="text"
-                inputMode="numeric"
-                pattern="\d{8,14}"
-                value={barcode}
-                onChange={(e) => setBarcode(e.target.value)}
-                placeholder="e.g. 0885909950805"
-                className={inputCls}
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label htmlFor="barcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Barcode{" "}
+                  <span className="text-gray-400 dark:text-gray-500 font-normal text-xs">UPC / EAN / ISBN</span>
+                </label>
+                <input
+                  id="barcode"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="\d{8,14}"
+                  value={barcode}
+                  onChange={(e) => { setBarcode(e.target.value); if (e.target.value) setSku(""); }}
+                  placeholder="e.g. 0885909950805"
+                  className={inputCls}
+                />
+              </div>
+              <div>
+                <label htmlFor="sku" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  SKU{" "}
+                  <span className="text-gray-400 dark:text-gray-500 font-normal text-xs">model / part number</span>
+                </label>
+                <input
+                  id="sku"
+                  type="text"
+                  value={sku}
+                  onChange={(e) => { setSku(e.target.value); if (e.target.value) setBarcode(""); }}
+                  placeholder="e.g. MQD83LL/A"
+                  className={inputCls}
+                />
+              </div>
             </div>
 
             <div>
@@ -1022,6 +1040,7 @@ export default function Home() {
               onClick={() => {
                 setAppState({ phase: "idle" });
                 setBarcode("");
+                setSku("");
                 setManualUrl("");
                 setManualHtml("");
                 setDemoMode(false);

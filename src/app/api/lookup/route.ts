@@ -5,7 +5,7 @@ import {
   BarcodeNotFoundError,
   BarcodeRateLimitError,
 } from "@/lib/barcode";
-import { searchForOfficialPage, SearchFailedError } from "@/lib/search";
+import { searchForOfficialPage, searchBySku, SearchFailedError } from "@/lib/search";
 import {
   scrapeUrl,
   PageBlockedError,
@@ -40,13 +40,14 @@ export async function POST(request: NextRequest) {
   }
 
   const barcode = body.barcode?.trim();
+  const sku = body.sku?.trim();
   const manualUrl = body.manualUrl?.trim() ?? "";
   const manualHtml = body.manualHtml?.trim() ?? "";
   const tavilyApiKey = body.tavilyApiKey?.trim() || undefined;
 
-  if (!barcode && !manualUrl && !manualHtml) {
+  if (!barcode && !sku && !manualUrl && !manualHtml) {
     return err(
-      "Provide a barcode, an official product page URL, or pasted page HTML.",
+      "Provide a barcode, SKU, an official product page URL, or pasted page HTML.",
       "BAD_REQUEST",
       400
     );
@@ -96,6 +97,15 @@ export async function POST(request: NextRequest) {
           });
         return err("Search failed.", "SEARCH_ERROR", 500);
       }
+    }
+  } else if (sku && !manualUrl) {
+    console.log(`[lookup] SKU "${sku}" — searching for official page`);
+    try {
+      url = await searchBySku(sku, tavilyApiKey);
+    } catch (e) {
+      if (e instanceof SearchFailedError)
+        return err(e.message, "SEARCH_FAILED", 404, FALLBACK_HINT, { productName: sku });
+      return err("Search failed.", "SEARCH_ERROR", 500);
     }
   }
 

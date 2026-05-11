@@ -50,6 +50,46 @@ export class SearchFailedError extends Error {
   }
 }
 
+export async function searchBySku(
+  sku: string,
+  apiKeyOverride?: string
+): Promise<string> {
+  const apiKey = apiKeyOverride || process.env.TAVILY_API_KEY;
+
+  if (!apiKey) {
+    throw new SearchFailedError(
+      "No search API configured. Could not find an official product page automatically.",
+      sku
+    );
+  }
+
+  const query = `"${sku}" official product page`;
+
+  let results: Array<{ url: string }> = [];
+  try {
+    const client = tavily({ apiKey });
+    const res = await client.search(query, { searchDepth: "basic", maxResults: 5 });
+    results = res.results ?? [];
+  } catch (err: unknown) {
+    throw new SearchFailedError(
+      `Search failed: ${err instanceof Error ? err.message : String(err)}. Could not find a product page for SKU.`,
+      sku
+    );
+  }
+
+  if (results.length === 0) {
+    throw new SearchFailedError(
+      `No results found for SKU "${sku}". Could not find an official product page automatically.`,
+      sku
+    );
+  }
+
+  const preferred = results.find((r) => !isDenied(r.url));
+  const chosen = (preferred ?? results[0]).url;
+  console.log(`[search] SKU → ${chosen}`);
+  return chosen;
+}
+
 export async function searchForOfficialPage(
   productName: string,
   brand: string,
