@@ -229,6 +229,7 @@ export default function Home() {
   const [upcUsage, setUpcUsage] = useState(0);
   const [showTavilyKey, setShowTavilyKey] = useState(false);
   const [showShopifyToken, setShowShopifyToken] = useState(false);
+  const [ollamaStatus, setOllamaStatus] = useState<"unknown" | "running" | "offline">("unknown");
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const pastedHtmlRef = useRef<HTMLTextAreaElement>(null);
@@ -242,6 +243,19 @@ export default function Home() {
     setShopifyDomain(localStorage.getItem(SHOPIFY_DOMAIN_STORAGE) ?? "");
     setShopifyToken(localStorage.getItem(SHOPIFY_TOKEN_STORAGE) ?? "");
     setUpcUsage(loadUpcUsage());
+
+    async function checkOllama() {
+      try {
+        const res = await fetch("/api/ollama-status");
+        const json = await res.json();
+        setOllamaStatus(json.status === "running" ? "running" : "offline");
+      } catch {
+        setOllamaStatus("offline");
+      }
+    }
+    checkOllama();
+    const ollamaInterval = setInterval(checkOllama, 15_000);
+    return () => clearInterval(ollamaInterval);
   }, []);
 
   async function fetchTavilyUsage(key: string) {
@@ -457,6 +471,18 @@ export default function Home() {
           >
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Settings</span>
             <div className="flex items-center gap-2">
+              <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                ollamaStatus === "running"
+                  ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                  : ollamaStatus === "offline"
+                  ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                  ollamaStatus === "running" ? "bg-emerald-500 animate-pulse" : ollamaStatus === "offline" ? "bg-red-500" : "bg-gray-400"
+                }`} />
+                Ollama
+              </span>
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                 tavilyKey
                   ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
