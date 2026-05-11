@@ -64,7 +64,8 @@
       "Bash(Out-Null)",
       "Bash(Get-Content \"C:\\\\Users\\\\Luke\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\A--Coding-ShopifyAutoLister\\\\95f73a25-335f-441a-8181-cc7464865931\\\\tasks\\\\bkut81bag.output\" -Wait)",
       "Bash(Select-String -Pattern \"Ready|Error|error|localhost\" --SimpleMatch)",
-      "PowerShell(Stop-Process *)"
+      "PowerShell(Stop-Process *)",
+      "Bash(ollama serve *)"
     ]
   }
 }
