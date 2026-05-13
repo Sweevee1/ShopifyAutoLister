@@ -44,6 +44,7 @@ export async function POST(request: NextRequest) {
   const manualUrl = body.manualUrl?.trim() ?? "";
   const manualHtml = body.manualHtml?.trim() ?? "";
   const tavilyApiKey = body.tavilyApiKey?.trim() || undefined;
+  const claudeApiKey = body.claudeApiKey?.trim() || undefined;
 
   if (!barcode && !sku && !manualUrl && !manualHtml) {
     return err(
@@ -176,7 +177,7 @@ export async function POST(request: NextRequest) {
         controller.enqueue(encoder.encode(JSON.stringify(obj) + "\n"));
 
       send({ type: "meta", sourceUrl, productName });
-      console.log("[lookup] stream started, calling Ollama...");
+      console.log(`[lookup] stream started, calling ${claudeApiKey ? "Claude API" : "Ollama"}...`);
 
       let fullText = "";
       try {
@@ -184,7 +185,8 @@ export async function POST(request: NextRequest) {
           scrapedContent,
           productInfo,
           priceContext || undefined,
-          usePastedHtml ? "paste" : "scrape"
+          usePastedHtml ? "paste" : "scrape",
+          claudeApiKey
         )) {
           fullText += token;
           send({ type: "chunk", text: token });

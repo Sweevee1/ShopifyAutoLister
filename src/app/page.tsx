@@ -83,7 +83,7 @@ function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) 
 
 const LAST_STEP = STEPS.length - 1;
 
-function StepIndicator({ stepIndex }: { stepIndex: number }) {
+function StepIndicator({ stepIndex, usingCloudAI }: { stepIndex: number; usingCloudAI?: boolean }) {
   const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
@@ -139,7 +139,9 @@ function StepIndicator({ stepIndex }: { stepIndex: number }) {
             <div className="h-full bg-[#008060] rounded-full animate-progress-bar" />
           </div>
           <p className="text-xs text-gray-400 dark:text-gray-500">
-            Running on CPU — typically 2–3 minutes. Hang tight.
+            {usingCloudAI
+              ? "Powered by Claude API — usually a few seconds."
+              : "Running on CPU — typically 2–3 minutes. Hang tight."}
           </p>
         </div>
       )}
@@ -164,6 +166,7 @@ function buildCopyPack(data: LookupResponse): string {
 }
 
 const TAVILY_KEY_STORAGE = "tavily_api_key";
+const CLAUDE_KEY_STORAGE = "claude_api_key";
 const DARK_MODE_STORAGE = "dark_mode";
 const SHOPIFY_DOMAIN_STORAGE = "shopify_store_domain";
 const SHOPIFY_TOKEN_STORAGE = "shopify_admin_token";
@@ -230,6 +233,8 @@ export default function Home() {
   const [upcUsage, setUpcUsage] = useState(0);
   const [showTavilyKey, setShowTavilyKey] = useState(false);
   const [showShopifyToken, setShowShopifyToken] = useState(false);
+  const [claudeApiKey, setClaudeApiKey] = useState("");
+  const [showClaudeKey, setShowClaudeKey] = useState(false);
   const [ollamaStatus, setOllamaStatus] = useState<"unknown" | "running" | "offline">("unknown");
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
@@ -238,6 +243,7 @@ export default function Home() {
   useEffect(() => {
     const savedKey = localStorage.getItem(TAVILY_KEY_STORAGE) ?? "";
     setTavilyKey(savedKey);
+    setClaudeApiKey(localStorage.getItem(CLAUDE_KEY_STORAGE) ?? "");
     setSettingsOpen(!savedKey);
     const savedDark = localStorage.getItem(DARK_MODE_STORAGE) === "true";
     setDarkMode(savedDark);
@@ -326,6 +332,7 @@ export default function Home() {
           manualUrl: manualUrl.trim() || undefined,
           manualHtml: manualHtml.trim() || undefined,
           tavilyApiKey: tavilyKey.trim() || undefined,
+          claudeApiKey: claudeApiKey.trim() || undefined,
         }),
       });
 
@@ -473,18 +480,24 @@ export default function Home() {
           >
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Settings</span>
             <div className="flex items-center gap-2">
-              <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                ollamaStatus === "running"
-                  ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
-                  : ollamaStatus === "offline"
-                  ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-400"
-              }`}>
-                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                  ollamaStatus === "running" ? "bg-emerald-500 animate-pulse" : ollamaStatus === "offline" ? "bg-red-500" : "bg-gray-400"
-                }`} />
-                Ollama
-              </span>
+              {claudeApiKey ? (
+                <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">
+                  Claude ✓
+                </span>
+              ) : (
+                <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                  ollamaStatus === "running"
+                    ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                    : ollamaStatus === "offline"
+                    ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                    : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                }`}>
+                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                    ollamaStatus === "running" ? "bg-emerald-500 animate-pulse" : ollamaStatus === "offline" ? "bg-red-500" : "bg-gray-400"
+                  }`} />
+                  Ollama
+                </span>
+              )}
               <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                 tavilyKey
                   ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
@@ -570,6 +583,39 @@ export default function Home() {
                     ) : null}
                   </div>
                 )}
+              </div>
+
+              <div className="flex flex-col gap-1.5 pt-3 border-t border-gray-100 dark:border-gray-800">
+                <label htmlFor="claudeKey" className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                  Claude API key
+                  <span className="text-gray-400 dark:text-gray-500 font-normal ml-1 text-xs">
+                    — cloud AI instead of Ollama (
+                    <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">
+                      get key
+                    </a>
+                    )
+                  </span>
+                </label>
+                <div className="relative">
+                  <input
+                    id="claudeKey"
+                    type={showClaudeKey ? "text" : "password"}
+                    value={claudeApiKey}
+                    onChange={(e) => {
+                      setClaudeApiKey(e.target.value);
+                      localStorage.setItem(CLAUDE_KEY_STORAGE, e.target.value);
+                    }}
+                    placeholder="sk-ant-..."
+                    className={`${inputCls} font-mono pr-9`}
+                  />
+                  <button type="button" onClick={() => setShowClaudeKey((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <EyeIcon open={showClaudeKey} />
+                  </button>
+                </div>
+                <p className="text-xs text-gray-400 dark:text-gray-500">
+                  Saved in your browser only — never sent anywhere except Anthropic.
+                  {claudeApiKey && " Ollama is not used while a Claude API key is set."}
+                </p>
               </div>
 
               <div className="flex flex-col gap-1.5 pt-3 border-t border-gray-100 dark:border-gray-800">
@@ -766,7 +812,7 @@ export default function Home() {
         {/* Loading */}
         {appState.phase === "loading" && (
           <div className={`${card} px-5`}>
-            <StepIndicator stepIndex={appState.stepIndex} />
+            <StepIndicator stepIndex={appState.stepIndex} usingCloudAI={!!claudeApiKey} />
           </div>
         )}
 

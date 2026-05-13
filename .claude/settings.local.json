@@ -66,7 +66,8 @@
       "Bash(Select-String -Pattern \"Ready|Error|error|localhost\" --SimpleMatch)",
       "PowerShell(Stop-Process *)",
       "Bash(ollama serve *)",
-      "Bash(npm show *)"
+      "Bash(npm show *)",
+      "Skill(claude-api)"
     ]
   }
 }

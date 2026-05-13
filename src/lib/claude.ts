@@ -1,8 +1,9 @@
-import axios from "axios";
+import Anthropic from "@anthropic-ai/sdk";
 import type { BarcodeResult } from "@/types";
 
 const OLLAMA_BASE = process.env.OLLAMA_HOST ?? "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3:8b";
+const CLAUDE_API_MODEL = process.env.CLAUDE_MODEL ?? "claude-haiku-4-5";
 
 const SYSTEM_PROMPT = `You are a Shopify product description specialist writing for an Australian online retailer.
 
@@ -143,10 +144,47 @@ export async function* streamDescription(
   scrapedContent: string,
   productInfo: Pick<BarcodeResult, "title" | "brand" | "category">,
   priceContext?: string,
-  contentSource?: "scrape" | "paste"
+  contentSource?: "scrape" | "paste",
+  claudeApiKey?: string
 ): AsyncGenerator<string> {
   const parts = buildPromptParts(scrapedContent, productInfo, priceContext, contentSource);
 
+  if (claudeApiKey) {
+    yield* streamWithClaudeApi(parts, claudeApiKey);
+  } else {
+    yield* streamWithOllama(parts);
+  }
+}
+
+async function* streamWithClaudeApi(parts: string, apiKey: string): AsyncGenerator<string> {
+  const client = new Anthropic({ apiKey });
+
+  try {
+    const stream = client.messages.stream({
+      model: CLAUDE_API_MODEL,
+      max_tokens: 2048,
+      temperature: 0.1,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: parts }],
+    });
+
+    for await (const event of stream) {
+      if (event.type === "content_block_delta" && event.delta.type === "text_delta") {
+        yield event.delta.text;
+      }
+    }
+  } catch (err: unknown) {
+    if (err instanceof Anthropic.AuthenticationError) {
+      throw new Error("Invalid Claude API key — check your key in Settings.");
+    }
+    if (err instanceof Anthropic.RateLimitError) {
+      throw new Error("Claude API rate limit reached — please try again later.");
+    }
+    throw new Error(`Claude API request failed: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
+
+async function* streamWithOllama(parts: string): AsyncGenerator<string> {
   let response: Response;
   try {
     response = await fetch(`${OLLAMA_BASE}/api/chat`, {

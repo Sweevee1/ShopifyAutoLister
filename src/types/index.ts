@@ -15,6 +15,8 @@ export interface LookupRequest {
   manualHtml?: string;
   /** User-supplied Tavily API key — used when TAVILY_API_KEY env var is not set */
   tavilyApiKey?: string;
+  /** User-supplied Anthropic API key — when set, uses Claude API instead of local Ollama */
+  claudeApiKey?: string;
 }
 
 export interface LookupResponse {
