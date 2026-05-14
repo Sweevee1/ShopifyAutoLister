@@ -38,7 +38,7 @@ Copy `.env.example` to `.env` and fill in:
 | `TAVILY_API_KEY` | _(none)_ | From app.tavily.com — only needed for barcode input (1,000 free/month) |
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama API base URL |
 | `OLLAMA_MODEL` | `qwen3:8b` | Ollama model to use |
-| `CLAUDE_MODEL` | `claude-haiku-4-5` | Claude API model (used when Claude API key is entered in Settings) |
+| `CLAUDE_MODEL` | `claude-haiku-4-5-20251001` | Claude API model (used when Claude API key is entered in Settings) |
 
 API keys for Tavily, Claude, and Shopify can also be entered in the app's Settings panel — stored in browser localStorage only, never committed.
 
