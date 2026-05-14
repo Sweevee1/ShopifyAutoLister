@@ -98,4 +98,7 @@ echo  ==========================================
 echo.
 
 start /b cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:3000"
-start "Shopify Auto-Lister Server" /wait cmd /k "npm run dev"
+npm run dev
+echo.
+echo  Server stopped. Press any key to close this window.
+pause >nul
