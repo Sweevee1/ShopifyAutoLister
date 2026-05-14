@@ -3,7 +3,7 @@ import type { BarcodeResult } from "@/types";
 
 const OLLAMA_BASE = process.env.OLLAMA_HOST ?? "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3:8b";
-const CLAUDE_API_MODEL = process.env.CLAUDE_MODEL ?? "claude-haiku-4-5-20251001";
+const CLAUDE_API_MODEL = process.env.CLAUDE_MODEL ?? "claude-sonnet-4-6";
 
 const SYSTEM_PROMPT = `You are a Shopify product description specialist writing for an Australian online retailer.
 
