@@ -589,6 +589,47 @@ export default function Home() {
                 )}
               </div>
 
+              {/* ── Barcode lookup ── */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setBarcodeOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Barcode lookup</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      upcUsage >= UPC_DAILY_LIMIT
+                        ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                        : upcUsage >= UPC_DAILY_LIMIT * 0.8
+                        ? "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+                        : "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                    }`}>
+                      {upcUsage}/{UPC_DAILY_LIMIT} today
+                    </span>
+                  </div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={`text-gray-400 transition-transform duration-200 ${barcodeOpen ? "rotate-180" : ""}`}>
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {barcodeOpen && (
+                  <div className="px-5 pb-4 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="font-medium text-gray-700 dark:text-gray-200">{upcUsage}</span>
+                        {" / "}{UPC_DAILY_LIMIT} requests today · UPC Item DB · resets daily
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${upcUsage >= UPC_DAILY_LIMIT ? "bg-red-500" : upcUsage >= UPC_DAILY_LIMIT * 0.8 ? "bg-amber-500" : "bg-[#008060]"}`}
+                        style={{ width: `${Math.min(100, (upcUsage / UPC_DAILY_LIMIT) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* ── AI Provider ── */}
               <div>
                 <button
@@ -723,47 +764,6 @@ export default function Home() {
                       </button>
                     </div>
                     <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Saved in your browser only — never sent anywhere except your Shopify store.</p>
-                  </div>
-                )}
-              </div>
-
-              {/* ── Barcode lookup ── */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setBarcodeOpen((v) => !v)}
-                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Barcode lookup</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      upcUsage >= UPC_DAILY_LIMIT
-                        ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                        : upcUsage >= UPC_DAILY_LIMIT * 0.8
-                        ? "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
-                        : "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
-                    }`}>
-                      {upcUsage}/{UPC_DAILY_LIMIT} today
-                    </span>
-                  </div>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={`text-gray-400 transition-transform duration-200 ${barcodeOpen ? "rotate-180" : ""}`}>
-                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-                {barcodeOpen && (
-                  <div className="px-5 pb-4 flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        <span className="font-medium text-gray-700 dark:text-gray-200">{upcUsage}</span>
-                        {" / "}{UPC_DAILY_LIMIT} requests today · UPC Item DB · resets daily
-                      </span>
-                    </div>
-                    <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${upcUsage >= UPC_DAILY_LIMIT ? "bg-red-500" : upcUsage >= UPC_DAILY_LIMIT * 0.8 ? "bg-amber-500" : "bg-[#008060]"}`}
-                        style={{ width: `${Math.min(100, (upcUsage / UPC_DAILY_LIMIT) * 100)}%` }}
-                      />
-                    </div>
                   </div>
                 )}
               </div>
