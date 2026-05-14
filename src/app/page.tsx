@@ -238,6 +238,10 @@ export default function Home() {
   const [showClaudeKey, setShowClaudeKey] = useState(false);
   const [aiProvider, setAiProvider] = useState<"claude" | "ollama">("ollama");
   const [ollamaStatus, setOllamaStatus] = useState<"unknown" | "running" | "offline">("unknown");
+  const [tavilyOpen, setTavilyOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [shopifyOpen, setShopifyOpen] = useState(false);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const pastedHtmlRef = useRef<HTMLTextAreaElement>(null);
@@ -474,262 +478,272 @@ export default function Home() {
         <div className={`${card} mb-4 overflow-hidden`}>
           <button
             type="button"
-            onClick={() => {
-              const next = !settingsOpen;
-              setSettingsOpen(next);
-              if (next && tavilyKey) fetchTavilyUsage(tavilyKey);
-            }}
+            onClick={() => setSettingsOpen((v) => !v)}
             className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
           >
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Settings</span>
-            <div className="flex items-center gap-2">
-              {aiProvider === "claude" ? (
-                <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                  claudeApiKey
-                    ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
-                    : "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
-                }`}>
-                  {claudeApiKey ? "Claude ✓" : "Claude (no key)"}
-                </span>
-              ) : (
-                <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
-                  ollamaStatus === "running"
-                    ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
-                    : ollamaStatus === "offline"
-                    ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                    : "bg-gray-100 dark:bg-gray-800 text-gray-400"
-                }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                    ollamaStatus === "running" ? "bg-emerald-500 animate-pulse" : ollamaStatus === "offline" ? "bg-red-500" : "bg-gray-400"
-                  }`} />
-                  Ollama
-                </span>
-              )}
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                tavilyKey
-                  ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-400"
-              }`}>
-                {tavilyKey ? "Tavily ✓" : "Tavily"}
-              </span>
-              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                shopifyDomain && shopifyToken
-                  ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
-                  : "bg-gray-100 dark:bg-gray-800 text-gray-400"
-              }`}>
-                {shopifyDomain && shopifyToken ? "Shopify ✓" : "Shopify"}
-              </span>
-              <svg
-                width="14" height="14" viewBox="0 0 24 24" fill="none"
-                className={`text-gray-400 transition-transform duration-200 ${settingsOpen ? "rotate-180" : ""}`}
-              >
-                <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
+            <svg
+              width="14" height="14" viewBox="0 0 24 24" fill="none"
+              className={`text-gray-400 transition-transform duration-200 ${settingsOpen ? "rotate-180" : ""}`}
+            >
+              <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
           </button>
 
           {settingsOpen && (
-            <div className="px-5 pb-5 border-t border-gray-100 dark:border-gray-800 pt-4 flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label htmlFor="tavilyKey" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Tavily API key
-                  <span className="text-gray-400 dark:text-gray-500 font-normal ml-1 text-xs">
-                    — auto product search (
-                    <a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">
-                      free key
-                    </a>
-                    , 1,000/mo)
-                  </span>
-                </label>
-                <div className="relative">
-                  <input
-                    id="tavilyKey"
-                    type={showTavilyKey ? "text" : "password"}
-                    value={tavilyKey}
-                    onChange={(e) => {
-                      setTavilyKey(e.target.value);
-                      localStorage.setItem(TAVILY_KEY_STORAGE, e.target.value);
-                    }}
-                    placeholder="tvly-..."
-                    className={`${inputCls} font-mono pr-9`}
-                  />
-                  <button type="button" onClick={() => setShowTavilyKey((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <EyeIcon open={showTavilyKey} />
-                  </button>
-                </div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  Saved in your browser only — never sent anywhere except Tavily.
-                </p>
+            <div className="border-t border-gray-100 dark:border-gray-800 divide-y divide-gray-100 dark:divide-gray-800">
 
-                {tavilyKey && (
-                  <div className="mt-1">
-                    {tavilyUsageLoading ? (
-                      <p className="text-xs text-gray-400 dark:text-gray-500">Checking usage…</p>
-                    ) : tavilyUsage ? (
-                      <div className="flex flex-col gap-1.5">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500 dark:text-gray-400">
-                            <span className="font-medium text-gray-700 dark:text-gray-200">{tavilyUsage.used.toLocaleString()}</span>
-                            {" / "}{tavilyUsage.limit.toLocaleString()} searches this month
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => fetchTavilyUsage(tavilyKey)}
-                            className="text-xs text-[#008060] hover:underline"
-                          >
-                            Refresh
-                          </button>
+              {/* ── Tavily ── */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = !tavilyOpen;
+                    setTavilyOpen(next);
+                    if (next && tavilyKey) fetchTavilyUsage(tavilyKey);
+                  }}
+                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Tavily</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      tavilyKey
+                        ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                    }`}>
+                      {tavilyKey ? "Tavily ✓" : "Not set"}
+                    </span>
+                  </div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={`text-gray-400 transition-transform duration-200 ${tavilyOpen ? "rotate-180" : ""}`}>
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {tavilyOpen && (
+                  <div className="px-5 pb-4 flex flex-col gap-2">
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      Auto product page search —{" "}
+                      <a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">free key</a>
+                      , 1,000/mo
+                    </p>
+                    <div className="relative">
+                      <input
+                        id="tavilyKey"
+                        type={showTavilyKey ? "text" : "password"}
+                        value={tavilyKey}
+                        onChange={(e) => {
+                          setTavilyKey(e.target.value);
+                          localStorage.setItem(TAVILY_KEY_STORAGE, e.target.value);
+                        }}
+                        placeholder="tvly-..."
+                        className={`${inputCls} font-mono pr-9`}
+                      />
+                      <button type="button" onClick={() => setShowTavilyKey((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <EyeIcon open={showTavilyKey} />
+                      </button>
+                    </div>
+                    {tavilyKey && (
+                      tavilyUsageLoading ? (
+                        <p className="text-xs text-gray-400 dark:text-gray-500">Checking usage…</p>
+                      ) : tavilyUsage ? (
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-500 dark:text-gray-400">
+                              <span className="font-medium text-gray-700 dark:text-gray-200">{tavilyUsage.used.toLocaleString()}</span>
+                              {" / "}{tavilyUsage.limit.toLocaleString()} searches this month
+                            </span>
+                            <button type="button" onClick={() => fetchTavilyUsage(tavilyKey)} className="text-xs text-[#008060] hover:underline">
+                              Refresh
+                            </button>
+                          </div>
+                          <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-[#008060] rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (tavilyUsage.used / tavilyUsage.limit) * 100)}%` }} />
+                          </div>
                         </div>
-                        <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-[#008060] rounded-full transition-all duration-500"
-                            style={{ width: `${Math.min(100, (tavilyUsage.used / tavilyUsage.limit) * 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                    ) : null}
+                      ) : null
+                    )}
                   </div>
                 )}
               </div>
 
-              <div className="flex flex-col gap-3 pt-3 border-t border-gray-100 dark:border-gray-800">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">AI Provider</p>
-                  <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-medium">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAiProvider("ollama");
-                        localStorage.setItem(AI_PROVIDER_STORAGE, "ollama");
-                      }}
-                      className={`px-3 py-1.5 transition-colors ${
-                        aiProvider === "ollama"
-                          ? "bg-[#008060] text-white"
-                          : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      Ollama
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAiProvider("claude");
-                        localStorage.setItem(AI_PROVIDER_STORAGE, "claude");
-                      }}
-                      className={`px-3 py-1.5 border-l border-gray-200 dark:border-gray-700 transition-colors ${
-                        aiProvider === "claude"
-                          ? "bg-[#008060] text-white"
-                          : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
-                      }`}
-                    >
-                      Claude API
-                    </button>
-                  </div>
-                </div>
-
-                {aiProvider === "claude" && (
-                  <div className="flex flex-col gap-1.5">
-                    <label htmlFor="claudeKey" className="text-xs font-medium text-gray-500 dark:text-gray-400">
-                      Anthropic API key
-                      <span className="font-normal ml-1">
-                        (
-                        <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">
-                          get key
-                        </a>
-                        )
+              {/* ── AI Provider ── */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setAiOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">AI Provider</span>
+                    {aiProvider === "claude" ? (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        claudeApiKey
+                          ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                          : "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+                      }`}>
+                        {claudeApiKey ? "Claude ✓" : "Claude (no key)"}
                       </span>
+                    ) : (
+                      <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                        ollamaStatus === "running"
+                          ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                          : ollamaStatus === "offline"
+                          ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                          ollamaStatus === "running" ? "bg-emerald-500 animate-pulse" : ollamaStatus === "offline" ? "bg-red-500" : "bg-gray-400"
+                        }`} />
+                        Ollama
+                      </span>
+                    )}
+                  </div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={`text-gray-400 transition-transform duration-200 ${aiOpen ? "rotate-180" : ""}`}>
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {aiOpen && (
+                  <div className="px-5 pb-4 flex flex-col gap-3">
+                    <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-medium self-start">
+                      <button
+                        type="button"
+                        onClick={() => { setAiProvider("ollama"); localStorage.setItem(AI_PROVIDER_STORAGE, "ollama"); }}
+                        className={`px-4 py-1.5 transition-colors ${aiProvider === "ollama" ? "bg-[#008060] text-white" : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"}`}
+                      >
+                        Ollama
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setAiProvider("claude"); localStorage.setItem(AI_PROVIDER_STORAGE, "claude"); }}
+                        className={`px-4 py-1.5 border-l border-gray-200 dark:border-gray-700 transition-colors ${aiProvider === "claude" ? "bg-[#008060] text-white" : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"}`}
+                      >
+                        Claude API
+                      </button>
+                    </div>
+                    {aiProvider === "claude" && (
+                      <div className="flex flex-col gap-1.5">
+                        <label htmlFor="claudeKey" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          Anthropic API key (
+                          <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">get key</a>
+                          )
+                        </label>
+                        <div className="relative">
+                          <input
+                            id="claudeKey"
+                            type={showClaudeKey ? "text" : "password"}
+                            value={claudeApiKey}
+                            onChange={(e) => { setClaudeApiKey(e.target.value); localStorage.setItem(CLAUDE_KEY_STORAGE, e.target.value); }}
+                            placeholder="sk-ant-..."
+                            className={`${inputCls} font-mono pr-9`}
+                          />
+                          <button type="button" onClick={() => setShowClaudeKey((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                            <EyeIcon open={showClaudeKey} />
+                          </button>
+                        </div>
+                        <p className="text-xs text-gray-400 dark:text-gray-500">Saved in your browser only — never sent anywhere except Anthropic.</p>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* ── Shopify ── */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setShopifyOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Shopify</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      shopifyDomain && shopifyToken
+                        ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                        : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                    }`}>
+                      {shopifyDomain && shopifyToken ? "Shopify ✓" : "Not set"}
+                    </span>
+                  </div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={`text-gray-400 transition-transform duration-200 ${shopifyOpen ? "rotate-180" : ""}`}>
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {shopifyOpen && (
+                  <div className="px-5 pb-4 flex flex-col gap-2">
+                    <label htmlFor="shopifyDomain" className="text-xs text-gray-500 dark:text-gray-400">Store domain</label>
+                    <input
+                      id="shopifyDomain"
+                      type="text"
+                      value={shopifyDomain}
+                      onChange={(e) => { setShopifyDomain(e.target.value); localStorage.setItem(SHOPIFY_DOMAIN_STORAGE, e.target.value); }}
+                      placeholder="my-store.myshopify.com"
+                      className={`${inputCls} font-mono`}
+                    />
+                    <label htmlFor="shopifyToken" className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                      Admin API token (
+                      <a href="https://shopify.dev/docs/apps/build/authentication-authorization/access-token/generate-app-access-tokens-admin" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">
+                        how to get one
+                      </a>
+                      )
                     </label>
                     <div className="relative">
                       <input
-                        id="claudeKey"
-                        type={showClaudeKey ? "text" : "password"}
-                        value={claudeApiKey}
-                        onChange={(e) => {
-                          setClaudeApiKey(e.target.value);
-                          localStorage.setItem(CLAUDE_KEY_STORAGE, e.target.value);
-                        }}
-                        placeholder="sk-ant-..."
+                        id="shopifyToken"
+                        type={showShopifyToken ? "text" : "password"}
+                        value={shopifyToken}
+                        onChange={(e) => { setShopifyToken(e.target.value); localStorage.setItem(SHOPIFY_TOKEN_STORAGE, e.target.value); }}
+                        placeholder="shpat_..."
                         className={`${inputCls} font-mono pr-9`}
                       />
-                      <button type="button" onClick={() => setShowClaudeKey((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                        <EyeIcon open={showClaudeKey} />
+                      <button type="button" onClick={() => setShowShopifyToken((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <EyeIcon open={showShopifyToken} />
                       </button>
                     </div>
-                    <p className="text-xs text-gray-400 dark:text-gray-500">
-                      Saved in your browser only — never sent anywhere except Anthropic.
-                    </p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Saved in your browser only — never sent anywhere except your Shopify store.</p>
                   </div>
                 )}
               </div>
 
-              <div className="flex flex-col gap-1.5 pt-3 border-t border-gray-100 dark:border-gray-800">
-                <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Shopify credentials</p>
-                <label htmlFor="shopifyDomain" className="text-xs text-gray-500 dark:text-gray-400">
-                  Store domain
-                </label>
-                <input
-                  id="shopifyDomain"
-                  type="text"
-                  value={shopifyDomain}
-                  onChange={(e) => {
-                    setShopifyDomain(e.target.value);
-                    localStorage.setItem(SHOPIFY_DOMAIN_STORAGE, e.target.value);
-                  }}
-                  placeholder="my-store.myshopify.com"
-                  className={`${inputCls} font-mono`}
-                />
-                <label htmlFor="shopifyToken" className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                  Admin API token (
-                  <a
-                    href="https://shopify.dev/docs/apps/build/authentication-authorization/access-token/generate-app-access-tokens-admin"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[#008060] hover:underline"
-                  >
-                    how to get one
-                  </a>
-                  )
-                </label>
-                <div className="relative">
-                  <input
-                    id="shopifyToken"
-                    type={showShopifyToken ? "text" : "password"}
-                    value={shopifyToken}
-                    onChange={(e) => {
-                      setShopifyToken(e.target.value);
-                      localStorage.setItem(SHOPIFY_TOKEN_STORAGE, e.target.value);
-                    }}
-                    placeholder="shpat_..."
-                    className={`${inputCls} font-mono pr-9`}
-                  />
-                  <button type="button" onClick={() => setShowShopifyToken((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <EyeIcon open={showShopifyToken} />
-                  </button>
-                </div>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-                  Saved in your browser only — never sent anywhere except your Shopify store.
-                </p>
+              {/* ── Barcode lookup ── */}
+              <div>
+                <button
+                  type="button"
+                  onClick={() => setBarcodeOpen((v) => !v)}
+                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Barcode lookup</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      upcUsage >= UPC_DAILY_LIMIT
+                        ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                        : upcUsage >= UPC_DAILY_LIMIT * 0.8
+                        ? "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+                        : "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                    }`}>
+                      {upcUsage}/{UPC_DAILY_LIMIT} today
+                    </span>
+                  </div>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={`text-gray-400 transition-transform duration-200 ${barcodeOpen ? "rotate-180" : ""}`}>
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </button>
+                {barcodeOpen && (
+                  <div className="px-5 pb-4 flex flex-col gap-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className="font-medium text-gray-700 dark:text-gray-200">{upcUsage}</span>
+                        {" / "}{UPC_DAILY_LIMIT} requests today · UPC Item DB · resets daily
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${upcUsage >= UPC_DAILY_LIMIT ? "bg-red-500" : upcUsage >= UPC_DAILY_LIMIT * 0.8 ? "bg-amber-500" : "bg-[#008060]"}`}
+                        style={{ width: `${Math.min(100, (upcUsage / UPC_DAILY_LIMIT) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Barcode API usage */}
-              <div className="flex flex-col gap-1.5 pt-3 border-t border-gray-100 dark:border-gray-800">
-                <div className="flex items-center justify-between">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">Barcode lookup</p>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">UPC Item DB · resets daily</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    <span className="font-medium text-gray-700 dark:text-gray-200">{upcUsage}</span>
-                    {" / "}{UPC_DAILY_LIMIT} requests today
-                  </span>
-                </div>
-                <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all duration-500 ${upcUsage >= UPC_DAILY_LIMIT ? "bg-red-500" : upcUsage >= UPC_DAILY_LIMIT * 0.8 ? "bg-amber-500" : "bg-[#008060]"}`}
-                    style={{ width: `${Math.min(100, (upcUsage / UPC_DAILY_LIMIT) * 100)}%` }}
-                  />
-                </div>
-              </div>
             </div>
           )}
         </div>
