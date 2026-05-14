@@ -8,7 +8,7 @@ Runs entirely on your machine with a free local model (Ollama), or connect a Cla
 
 ## Quick start
 
-### Prerequisites
+### 1. Install prerequisites
 
 - **Node.js 18+** — [nodejs.org](https://nodejs.org)
 - **Git** — [git-scm.com](https://git-scm.com)
@@ -16,29 +16,28 @@ Runs entirely on your machine with a free local model (Ollama), or connect a Cla
   - **Ollama** (free, runs locally) — [ollama.com](https://ollama.com)
   - **Claude API key** (cloud, faster) — [console.anthropic.com](https://console.anthropic.com)
 
-### Steps
+### 2. Clone the repo
 
 ```bash
-# 1. Clone and install
 git clone https://github.com/Sweevee1/ShopifyAutoLister.git
 cd ShopifyAutoLister
-npm install
-
-# 2. Create your .env file
-copy .env.example .env        # Windows
-cp .env.example .env          # Mac / Linux
-# Edit .env — add TAVILY_API_KEY if you have one (optional)
-
-# 3a. If using Ollama — pull the model and start it (separate terminal)
-ollama pull qwen3:8b
-ollama serve
-
-# 3b. If using Claude API — skip step 3a. Enter your key in Settings in the app.
-
-# 4. Run the app
-npm run dev
-# → Open http://localhost:3000
 ```
+
+### 3. Launch
+
+**Windows** — double-click `Start.bat`
+
+**Mac / Linux:**
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+The script installs dependencies on first run, starts the server, and opens your browser automatically. On first run this takes about 30–60 seconds; after that it's ready in a few seconds.
+
+> **If using Ollama** — open a separate terminal and run `ollama serve` before launching (or after, the app will wait). Pull the model once with `ollama pull qwen3:8b`.
+>
+> **If using Claude API** — no extra setup. Enter your key in **Settings → AI Provider → Claude API** once the app opens.
 
 ---
 
