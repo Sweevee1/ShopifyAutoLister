@@ -167,6 +167,7 @@ function buildCopyPack(data: LookupResponse): string {
 
 const TAVILY_KEY_STORAGE = "tavily_api_key";
 const CLAUDE_KEY_STORAGE = "claude_api_key";
+const AI_PROVIDER_STORAGE = "ai_provider";
 const DARK_MODE_STORAGE = "dark_mode";
 const SHOPIFY_DOMAIN_STORAGE = "shopify_store_domain";
 const SHOPIFY_TOKEN_STORAGE = "shopify_admin_token";
@@ -235,6 +236,7 @@ export default function Home() {
   const [showShopifyToken, setShowShopifyToken] = useState(false);
   const [claudeApiKey, setClaudeApiKey] = useState("");
   const [showClaudeKey, setShowClaudeKey] = useState(false);
+  const [aiProvider, setAiProvider] = useState<"claude" | "ollama">("ollama");
   const [ollamaStatus, setOllamaStatus] = useState<"unknown" | "running" | "offline">("unknown");
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
@@ -244,6 +246,7 @@ export default function Home() {
     const savedKey = localStorage.getItem(TAVILY_KEY_STORAGE) ?? "";
     setTavilyKey(savedKey);
     setClaudeApiKey(localStorage.getItem(CLAUDE_KEY_STORAGE) ?? "");
+    setAiProvider((localStorage.getItem(AI_PROVIDER_STORAGE) as "claude" | "ollama") ?? "ollama");
     setSettingsOpen(!savedKey);
     const savedDark = localStorage.getItem(DARK_MODE_STORAGE) === "true";
     setDarkMode(savedDark);
@@ -332,7 +335,7 @@ export default function Home() {
           manualUrl: manualUrl.trim() || undefined,
           manualHtml: manualHtml.trim() || undefined,
           tavilyApiKey: tavilyKey.trim() || undefined,
-          claudeApiKey: claudeApiKey.trim() || undefined,
+          claudeApiKey: aiProvider === "claude" ? claudeApiKey.trim() || undefined : undefined,
         }),
       });
 
@@ -480,9 +483,13 @@ export default function Home() {
           >
             <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Settings</span>
             <div className="flex items-center gap-2">
-              {claudeApiKey ? (
-                <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400">
-                  Claude ✓
+              {aiProvider === "claude" ? (
+                <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
+                  claudeApiKey
+                    ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                    : "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
+                }`}>
+                  {claudeApiKey ? "Claude ✓" : "Claude (no key)"}
                 </span>
               ) : (
                 <span className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -585,37 +592,74 @@ export default function Home() {
                 )}
               </div>
 
-              <div className="flex flex-col gap-1.5 pt-3 border-t border-gray-100 dark:border-gray-800">
-                <label htmlFor="claudeKey" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Claude API key
-                  <span className="text-gray-400 dark:text-gray-500 font-normal ml-1 text-xs">
-                    — cloud AI instead of Ollama (
-                    <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">
-                      get key
-                    </a>
-                    )
-                  </span>
-                </label>
-                <div className="relative">
-                  <input
-                    id="claudeKey"
-                    type={showClaudeKey ? "text" : "password"}
-                    value={claudeApiKey}
-                    onChange={(e) => {
-                      setClaudeApiKey(e.target.value);
-                      localStorage.setItem(CLAUDE_KEY_STORAGE, e.target.value);
-                    }}
-                    placeholder="sk-ant-..."
-                    className={`${inputCls} font-mono pr-9`}
-                  />
-                  <button type="button" onClick={() => setShowClaudeKey((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                    <EyeIcon open={showClaudeKey} />
-                  </button>
+              <div className="flex flex-col gap-3 pt-3 border-t border-gray-100 dark:border-gray-800">
+                <div className="flex items-center justify-between">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">AI Provider</p>
+                  <div className="flex rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden text-xs font-medium">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAiProvider("ollama");
+                        localStorage.setItem(AI_PROVIDER_STORAGE, "ollama");
+                      }}
+                      className={`px-3 py-1.5 transition-colors ${
+                        aiProvider === "ollama"
+                          ? "bg-[#008060] text-white"
+                          : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      Ollama
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAiProvider("claude");
+                        localStorage.setItem(AI_PROVIDER_STORAGE, "claude");
+                      }}
+                      className={`px-3 py-1.5 border-l border-gray-200 dark:border-gray-700 transition-colors ${
+                        aiProvider === "claude"
+                          ? "bg-[#008060] text-white"
+                          : "bg-white dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
+                      }`}
+                    >
+                      Claude API
+                    </button>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  Saved in your browser only — never sent anywhere except Anthropic.
-                  {claudeApiKey && " Ollama is not used while a Claude API key is set."}
-                </p>
+
+                {aiProvider === "claude" && (
+                  <div className="flex flex-col gap-1.5">
+                    <label htmlFor="claudeKey" className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                      Anthropic API key
+                      <span className="font-normal ml-1">
+                        (
+                        <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">
+                          get key
+                        </a>
+                        )
+                      </span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        id="claudeKey"
+                        type={showClaudeKey ? "text" : "password"}
+                        value={claudeApiKey}
+                        onChange={(e) => {
+                          setClaudeApiKey(e.target.value);
+                          localStorage.setItem(CLAUDE_KEY_STORAGE, e.target.value);
+                        }}
+                        placeholder="sk-ant-..."
+                        className={`${inputCls} font-mono pr-9`}
+                      />
+                      <button type="button" onClick={() => setShowClaudeKey((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                        <EyeIcon open={showClaudeKey} />
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500">
+                      Saved in your browser only — never sent anywhere except Anthropic.
+                    </p>
+                  </div>
+                )}
               </div>
 
               <div className="flex flex-col gap-1.5 pt-3 border-t border-gray-100 dark:border-gray-800">
@@ -812,7 +856,7 @@ export default function Home() {
         {/* Loading */}
         {appState.phase === "loading" && (
           <div className={`${card} px-5`}>
-            <StepIndicator stepIndex={appState.stepIndex} usingCloudAI={!!claudeApiKey} />
+            <StepIndicator stepIndex={appState.stepIndex} usingCloudAI={aiProvider === "claude" && !!claudeApiKey} />
           </div>
         )}
 
