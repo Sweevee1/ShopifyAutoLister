@@ -112,13 +112,20 @@ function buildPromptParts(
   scrapedContent: string,
   productInfo: Pick<BarcodeResult, "title" | "brand" | "category">,
   priceContext?: string,
-  contentSource?: "scrape" | "paste"
+  contentSource?: "scrape" | "paste" | "image"
 ): string {
   const isDerived = productInfo.title === "(derive from page)";
-  const blockHeading =
-    contentSource === "paste"
-      ? "Official product content (provided as pasted webpage extract — factual extraction only)"
-      : "Official product page content";
+  const isImageOnly = contentSource === "image";
+
+  const blockHeading = isImageOnly
+    ? "Note (no product page available — identify product from the attached image)"
+    : contentSource === "paste"
+    ? "Official product content (provided as pasted webpage extract — factual extraction only)"
+    : "Official product page content";
+
+  const finalInstruction = isImageOnly
+    ? "Identify the product from the attached image and generate the Shopify description based on what you can see. Output only JSON."
+    : "Generate the Shopify description strictly from the foregoing block. Output only JSON.";
 
   return [
     isDerived
@@ -134,7 +141,7 @@ function buildPromptParts(
     scrapedContent,
     "---",
     "",
-    "Generate the Shopify description strictly from the foregoing block. Output only JSON.",
+    finalInstruction,
   ]
     .filter((l) => l !== null)
     .join("\n");
@@ -144,7 +151,7 @@ export async function* streamDescription(
   scrapedContent: string,
   productInfo: Pick<BarcodeResult, "title" | "brand" | "category">,
   priceContext?: string,
-  contentSource?: "scrape" | "paste",
+  contentSource?: "scrape" | "paste" | "image",
   claudeApiKey?: string,
   imageBase64?: string
 ): AsyncGenerator<string> {

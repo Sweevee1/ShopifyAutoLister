@@ -218,7 +218,6 @@ function ShopifyBagIcon({ size = 18, stroke = "currentColor" }: { size?: number;
 
 export default function Home() {
   const [barcode, setBarcode] = useState("");
-  const [sku, setSku] = useState("");
   const [manualUrl, setManualUrl] = useState("");
   const [manualHtml, setManualHtml] = useState("");
   const [appState, setAppState] = useState<AppState>({ phase: "idle" });
@@ -336,7 +335,7 @@ export default function Home() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!barcode.trim() && !sku.trim() && !manualUrl.trim() && !manualHtml.trim()) return;
+    if (!barcode.trim() && !manualUrl.trim() && !manualHtml.trim() && !productImage) return;
 
     clearStepTimer();
     setAppState({ phase: "loading", stepIndex: 0 });
@@ -360,7 +359,6 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           barcode: barcode.trim() || undefined,
-          sku: sku.trim() || undefined,
           manualUrl: manualUrl.trim() || undefined,
           manualHtml: manualHtml.trim() || undefined,
           tavilyApiKey: tavilyKey.trim() || undefined,
@@ -778,6 +776,7 @@ export default function Home() {
         <div className={`${card} p-5 mb-4`}>
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="grid grid-cols-2 gap-3">
+              {/* Barcode */}
               <div>
                 <label htmlFor="barcode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
                   Barcode{" "}
@@ -789,68 +788,50 @@ export default function Home() {
                   inputMode="numeric"
                   pattern="\d{8,14}"
                   value={barcode}
-                  onChange={(e) => { setBarcode(e.target.value); if (e.target.value) setSku(""); }}
+                  onChange={(e) => setBarcode(e.target.value)}
                   placeholder="e.g. 0885909950805"
                   className={inputCls}
                 />
               </div>
-              <div>
-                <label htmlFor="sku" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                  SKU{" "}
-                  <span className="text-gray-400 dark:text-gray-500 font-normal text-xs">model / part number</span>
-                </label>
-                <input
-                  id="sku"
-                  type="text"
-                  value={sku}
-                  onChange={(e) => { setSku(e.target.value); if (e.target.value) setBarcode(""); }}
-                  placeholder="e.g. MQD83LL/A"
-                  className={inputCls}
-                />
-              </div>
-            </div>
 
-            {/* Image upload */}
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
-                Product image
-                <span className="text-gray-400 dark:text-gray-500 font-normal text-xs"> (optional — resized to 800 px, sent to Claude for visual context)</span>
-              </label>
-              {productImage ? (
-                <div className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
-                  <img src={productImage.dataUrl} alt="Product preview" className="w-14 h-14 object-contain rounded flex-shrink-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{productImage.width} × {productImage.height} px</p>
-                    {aiProvider !== "claude" && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Image analysis requires Claude API — switch AI Provider in Settings.</p>
-                    )}
+              {/* Product image */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                  Product image{" "}
+                  <span className="text-gray-400 dark:text-gray-500 font-normal text-xs">optional</span>
+                </label>
+                {productImage ? (
+                  <div className="flex items-center gap-2 border border-gray-200 dark:border-gray-700 rounded-lg px-2.5 py-1.5 bg-gray-50 dark:bg-gray-800/50 min-h-[42px]">
+                    <img src={productImage.dataUrl} alt="" className="w-7 h-7 object-contain rounded flex-shrink-0 bg-white dark:bg-gray-900" />
+                    <span className="text-xs text-gray-500 dark:text-gray-400 flex-1 truncate min-w-0">{productImage.width}×{productImage.height}px</span>
+                    <button
+                      type="button"
+                      onClick={() => setProductImage(null)}
+                      className="flex-shrink-0 w-5 h-5 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-500 hover:text-red-600 dark:hover:text-red-400 flex items-center justify-center text-xs font-bold transition-colors"
+                      aria-label="Remove image"
+                    >×</button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => setProductImage(null)}
-                    className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center justify-center text-sm font-bold transition-colors"
-                    aria-label="Remove image"
+                ) : (
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => fileInputRef.current?.click()}
+                    onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleImageFile(f); }}
+                    className="flex items-center justify-center gap-2 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-[#008060] rounded-lg min-h-[42px] cursor-pointer transition-colors px-3"
                   >
-                    ×
-                  </button>
-                </div>
-              ) : (
-                <div
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => fileInputRef.current?.click()}
-                  onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleImageFile(f); }}
-                  className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-[#008060] dark:hover:border-[#008060] rounded-lg p-5 cursor-pointer transition-colors text-center"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 dark:text-gray-600">
-                    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                  </svg>
-                  <span className="text-xs text-gray-400 dark:text-gray-500">Drop image or <span className="text-[#008060]">click to browse</span></span>
-                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); e.target.value = ""; }} />
-                </div>
-              )}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 dark:text-gray-600 flex-shrink-0">
+                      <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                    </svg>
+                    <span className="text-xs text-gray-400 dark:text-gray-500 whitespace-nowrap">Drop or <span className="text-[#008060]">browse</span></span>
+                    <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); e.target.value = ""; }} />
+                  </div>
+                )}
+                {productImage && aiProvider !== "claude" && (
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Requires Claude API (Settings)</p>
+                )}
+              </div>
             </div>
 
             <div>
@@ -1213,9 +1194,9 @@ export default function Home() {
               onClick={() => {
                 setAppState({ phase: "idle" });
                 setBarcode("");
-                setSku("");
                 setManualUrl("");
                 setManualHtml("");
+                setProductImage(null);
                 setDemoMode(false);
               }}
               className="self-center text-sm text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors py-1"

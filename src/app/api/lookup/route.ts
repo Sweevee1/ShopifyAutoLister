@@ -5,7 +5,7 @@ import {
   BarcodeNotFoundError,
   BarcodeRateLimitError,
 } from "@/lib/barcode";
-import { searchForOfficialPage, searchBySku, SearchFailedError } from "@/lib/search";
+import { searchForOfficialPage, SearchFailedError } from "@/lib/search";
 import {
   scrapeUrl,
   PageBlockedError,
@@ -40,16 +40,15 @@ export async function POST(request: NextRequest) {
   }
 
   const barcode = body.barcode?.trim();
-  const sku = body.sku?.trim();
   const manualUrl = body.manualUrl?.trim() ?? "";
   const manualHtml = body.manualHtml?.trim() ?? "";
   const tavilyApiKey = body.tavilyApiKey?.trim() || undefined;
   const claudeApiKey = body.claudeApiKey?.trim() || undefined;
   const imageBase64 = body.imageBase64?.trim() || undefined;
 
-  if (!barcode && !sku && !manualUrl && !manualHtml) {
+  if (!barcode && !manualUrl && !manualHtml && !imageBase64) {
     return err(
-      "Provide a barcode, SKU, an official product page URL, or pasted page HTML.",
+      "Provide a barcode, product image, an official product page URL, or pasted page HTML.",
       "BAD_REQUEST",
       400
     );
@@ -100,20 +99,12 @@ export async function POST(request: NextRequest) {
         return err("Search failed.", "SEARCH_ERROR", 500);
       }
     }
-  } else if (sku && !manualUrl) {
-    console.log(`[lookup] SKU "${sku}" — searching for official page`);
-    try {
-      url = await searchBySku(sku, tavilyApiKey);
-    } catch (e) {
-      if (e instanceof SearchFailedError)
-        return err(e.message, "SEARCH_FAILED", 404, FALLBACK_HINT, { productName: sku });
-      return err("Search failed.", "SEARCH_ERROR", 500);
-    }
   }
 
   const usePastedHtml = manualHtml.length > 0;
+  const imageOnly = !!imageBase64 && !barcode && !manualUrl && !manualHtml;
 
-  if (!usePastedHtml && !url) {
+  if (!imageOnly && !usePastedHtml && !url) {
     return err(
       "Could not resolve an official product page URL.",
       "NO_PRODUCT_URL",
@@ -126,49 +117,52 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const sourceUrl = usePastedHtml ? manualUrl || url || "" : url;
+  const sourceUrl = imageOnly ? "" : (usePastedHtml ? manualUrl || url || "" : url);
 
-  const [priceSignals, scrapeOutcome] = await Promise.allSettled([
-    gatherPriceSignals(productInfo.title, productInfo.brand, barcodeResult, tavilyApiKey),
-    usePastedHtml ? Promise.resolve(manualHtml) : scrapeUrl(url),
-  ]);
+  let scrapedContent: string;
+  let priceContext = "";
 
-  if (!usePastedHtml && scrapeOutcome.status === "rejected") {
-    const e = scrapeOutcome.reason;
-    if (e instanceof PageBlockedError)
-      return err(e.message, "PAGE_BLOCKED", 422, FALLBACK_HINT);
-    if (e instanceof PageEmptyError)
-      return err(e.message, "PAGE_EMPTY", 422, FALLBACK_HINT);
-    if (e instanceof PageNotFoundError)
-      return err(
-        e.message,
-        "PAGE_NOT_FOUND",
-        404,
-        "Check the URL and try again, or paste saved page HTML if the live page renders with JavaScript only."
-      );
-    if (e instanceof PageTimeoutError)
-      return err(
-        e.message,
-        "PAGE_TIMEOUT",
-        504,
-        "Retry with the same URL, try a simpler manufacturer URL path, or paste saved page HTML."
-      );
-    return err("Failed to read the product page.", "SCRAPE_ERROR", 500, FALLBACK_HINT);
+  if (imageOnly) {
+    scrapedContent = "No product page available — identify and describe the product from the attached image.";
+    console.log("[lookup] image-only mode — skipping scrape");
+  } else {
+    const [priceSignals, scrapeOutcome] = await Promise.allSettled([
+      gatherPriceSignals(productInfo.title, productInfo.brand, barcodeResult, tavilyApiKey),
+      usePastedHtml ? Promise.resolve(manualHtml) : scrapeUrl(url),
+    ]);
+
+    if (!usePastedHtml && scrapeOutcome.status === "rejected") {
+      const e = scrapeOutcome.reason;
+      if (e instanceof PageBlockedError)
+        return err(e.message, "PAGE_BLOCKED", 422, FALLBACK_HINT);
+      if (e instanceof PageEmptyError)
+        return err(e.message, "PAGE_EMPTY", 422, FALLBACK_HINT);
+      if (e instanceof PageNotFoundError)
+        return err(
+          e.message,
+          "PAGE_NOT_FOUND",
+          404,
+          "Check the URL and try again, or paste saved page HTML if the live page renders with JavaScript only."
+        );
+      if (e instanceof PageTimeoutError)
+        return err(
+          e.message,
+          "PAGE_TIMEOUT",
+          504,
+          "Retry with the same URL, try a simpler manufacturer URL path, or paste saved page HTML."
+        );
+      return err("Failed to read the product page.", "SCRAPE_ERROR", 500, FALLBACK_HINT);
+    }
+
+    scrapedContent = scrapeOutcome.status === "fulfilled" ? scrapeOutcome.value : "";
+    if (!scrapedContent) {
+      return err("Failed to read the product page.", "SCRAPE_ERROR", 500, FALLBACK_HINT);
+    }
+    priceContext = priceSignals.status === "fulfilled" ? formatPriceContext(priceSignals.value) : "";
+    console.log(`[lookup] content ${usePastedHtml ? "pasted" : "scraped"} ${scrapedContent.length} chars, price context: ${priceContext.length} chars`);
   }
 
-  const scrapedContent =
-    scrapeOutcome.status === "fulfilled" ? scrapeOutcome.value : "";
-
-  if (!scrapedContent) {
-    return err("Failed to read the product page.", "SCRAPE_ERROR", 500, FALLBACK_HINT);
-  }
-
-  const priceContext =
-    priceSignals.status === "fulfilled" ? formatPriceContext(priceSignals.value) : "";
-  console.log(
-    `[lookup] content ${usePastedHtml ? "pasted" : "scraped"} ${scrapedContent.length} chars, price context: ${priceContext.length} chars`
-  );
-
+  const contentSource = imageOnly ? "image" : usePastedHtml ? "paste" : "scrape";
   const encoder = new TextEncoder();
   const productName = productInfo.title === "(derive from page)" ? "" : productInfo.title;
 
@@ -186,7 +180,7 @@ export async function POST(request: NextRequest) {
           scrapedContent,
           productInfo,
           priceContext || undefined,
-          usePastedHtml ? "paste" : "scrape",
+          contentSource,
           claudeApiKey,
           imageBase64
         )) {
