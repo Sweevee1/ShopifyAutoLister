@@ -123,7 +123,7 @@ Get a key at [console.anthropic.com](https://console.anthropic.com). Image analy
 | **UPC Item DB** | Barcode → product name, brand, price range | Free, 100 req/day | No |
 | **Open Food Facts** | Supplementary barcode source | Free | No |
 | **Jina Reader** (`r.jina.ai`) | Renders JS SPAs, returns clean text | Free | No |
-| **Tavily** | Finds the official product page; gathers AUD price signals | Free 1,000/month | Optional — `tvly-...` key from [app.tavily.com](https://app.tavily.com) |
+| **Tavily** | Finds the official product page from a barcode lookup; gathers AUD price signals. **Only needed when using barcodes** — not required for image or URL input. | Free 1,000/month | Optional — `tvly-...` key from [app.tavily.com](https://app.tavily.com) |
 | **Ollama** | Local AI model host | Free | No |
 | **Claude API** | Cloud AI (faster, supports image input) | Pay-per-use | Optional — key from [console.anthropic.com](https://console.anthropic.com) |
 | **Shopify Admin API** | Creates draft products in your store | Free (requires store) | Admin API token |

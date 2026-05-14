@@ -545,9 +545,9 @@ export default function Home() {
                 {tavilyOpen && (
                   <div className="px-5 pb-4 flex flex-col gap-2">
                     <p className="text-xs text-gray-400 dark:text-gray-500">
-                      Auto product page search —{" "}
-                      <a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">free key</a>
-                      , 1,000/mo
+                      Only needed when looking up by <strong className="text-gray-500 dark:text-gray-400">barcode</strong> — finds the official product page automatically.
+                      Not required when you upload an image or paste a URL directly.
+                      {" "}<a href="https://app.tavily.com" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">Free key</a>, 1,000/mo.
                     </p>
                     <div className="relative">
                       <input
