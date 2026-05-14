@@ -6,38 +6,72 @@ Runs entirely on your machine with a free local model (Ollama), or connect a Cla
 
 ---
 
-## Quick start
+## Setup & running
 
-### 1. Install prerequisites
+### Step 1 — Install Node.js
 
-- **Node.js 18+** — [nodejs.org](https://nodejs.org)
-- **Git** — [git-scm.com](https://git-scm.com)
-- **One of:**
-  - **Ollama** (free, runs locally) — [ollama.com](https://ollama.com)
-  - **Claude API key** (cloud, faster) — [console.anthropic.com](https://console.anthropic.com)
+Node.js is the runtime the app needs. You only do this once.
 
-### 2. Clone the repo
+- Go to **[nodejs.org](https://nodejs.org)** and download the **LTS** version
+- Run the installer and keep all default options
+- Restart your PC/Mac after installing
 
-```bash
-git clone https://github.com/Sweevee1/ShopifyAutoLister.git
-cd ShopifyAutoLister
-```
+To verify it worked, open a terminal and run `node --version` — you should see a version number.
 
-### 3. Launch
+---
 
-**Windows** — double-click `Start.bat`
+### Step 2 — Choose an AI provider
 
-**Mac / Linux:**
-```bash
-chmod +x start.sh
-./start.sh
-```
+The app needs an AI to generate the product descriptions. Pick one:
 
-The script installs dependencies on first run, starts the server, and opens your browser automatically. On first run this takes about 30–60 seconds; after that it's ready in a few seconds.
+#### Option A — Ollama (free, runs on your computer)
 
-> **If using Ollama** — open a separate terminal and run `ollama serve` before launching (or after, the app will wait). Pull the model once with `ollama pull qwen3:8b`.
->
-> **If using Claude API** — no extra setup. Enter your key in **Settings → AI Provider → Claude API** once the app opens.
+Best if you want no ongoing cost and don't mind a 2–3 minute generation time on CPU (much faster with an NVIDIA GPU).
+
+1. Go to **[ollama.com](https://ollama.com)** and download Ollama for your OS
+2. Install it, then open a terminal and run:
+   ```bash
+   ollama pull qwen3:8b
+   ```
+   This downloads the AI model (~5 GB, one-time download).
+3. Keep Ollama running with:
+   ```bash
+   ollama serve
+   ```
+   You'll need this running whenever you use the app.
+
+#### Option B — Claude API (cloud, ~5 seconds per listing)
+
+Best if you want fast results without a large download. Uses Anthropic's servers — costs a small amount per use (typically fractions of a cent per listing).
+
+1. Go to **[console.anthropic.com](https://console.anthropic.com)** and create a free account
+2. Go to **API Keys** and create a new key (starts with `sk-ant-...`)
+3. You'll enter this key in the app's Settings panel — no file editing needed
+
+---
+
+### Step 3 — Download and run the app
+
+1. Download this repo — click the green **Code** button on GitHub → **Download ZIP**, then extract it  
+   *(or if you have Git: `git clone https://github.com/Sweevee1/ShopifyAutoLister.git`)*
+
+2. Open the extracted folder and launch:
+
+   **Windows** — double-click **`Start.bat`**
+
+   **Mac / Linux** — open a terminal in the folder and run:
+   ```bash
+   chmod +x start.sh
+   ./start.sh
+   ```
+
+The launcher will install dependencies automatically on first run (takes about a minute), then open the app in your browser.
+
+If you chose **Option B (Claude API)**, open **Settings** in the app, expand **AI Provider**, select **Claude API**, and paste your key.
+
+---
+
+> **Every time you want to use the app:** just double-click `Start.bat` (Windows) or run `./start.sh` (Mac/Linux). If you're using Ollama, make sure `ollama serve` is running in a separate terminal.
 
 ---
 
