@@ -242,9 +242,11 @@ export default function Home() {
   const [aiOpen, setAiOpen] = useState(false);
   const [shopifyOpen, setShopifyOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
+  const [productImage, setProductImage] = useState<{ base64: string; dataUrl: string; width: number; height: number } | null>(null);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
   const pastedHtmlRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const savedKey = localStorage.getItem(TAVILY_KEY_STORAGE) ?? "";
@@ -307,6 +309,29 @@ export default function Home() {
     }
   }
 
+  async function handleImageFile(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    const url = URL.createObjectURL(file);
+    const img = new window.Image();
+    img.src = url;
+    await new Promise<void>((resolve) => { img.onload = () => resolve(); });
+    const MAX = 800;
+    let w = img.naturalWidth;
+    let h = img.naturalHeight;
+    if (w > MAX || h > MAX) {
+      const ratio = Math.min(MAX / w, MAX / h);
+      w = Math.round(w * ratio);
+      h = Math.round(h * ratio);
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = w;
+    canvas.height = h;
+    canvas.getContext("2d")!.drawImage(img, 0, 0, w, h);
+    URL.revokeObjectURL(url);
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+    setProductImage({ base64: dataUrl.split(",")[1], dataUrl, width: w, height: h });
+  }
+
   useEffect(() => () => clearStepTimer(), []);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -340,6 +365,7 @@ export default function Home() {
           manualHtml: manualHtml.trim() || undefined,
           tavilyApiKey: tavilyKey.trim() || undefined,
           claudeApiKey: aiProvider === "claude" ? claudeApiKey.trim() || undefined : undefined,
+          imageBase64: aiProvider === "claude" ? productImage?.base64 : undefined,
         }),
       });
 
@@ -782,6 +808,49 @@ export default function Home() {
                   className={inputCls}
                 />
               </div>
+            </div>
+
+            {/* Image upload */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Product image
+                <span className="text-gray-400 dark:text-gray-500 font-normal text-xs"> (optional — resized to 800 px, sent to Claude for visual context)</span>
+              </label>
+              {productImage ? (
+                <div className="flex items-center gap-3 p-3 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-800/50">
+                  <img src={productImage.dataUrl} alt="Product preview" className="w-14 h-14 object-contain rounded flex-shrink-0 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium text-gray-700 dark:text-gray-300">{productImage.width} × {productImage.height} px</p>
+                    {aiProvider !== "claude" && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-0.5">Image analysis requires Claude API — switch AI Provider in Settings.</p>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setProductImage(null)}
+                    className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-red-100 dark:hover:bg-red-900/40 text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 flex items-center justify-center text-sm font-bold transition-colors"
+                    aria-label="Remove image"
+                  >
+                    ×
+                  </button>
+                </div>
+              ) : (
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => fileInputRef.current?.click()}
+                  onKeyDown={(e) => e.key === "Enter" && fileInputRef.current?.click()}
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleImageFile(f); }}
+                  className="flex flex-col items-center justify-center gap-1.5 border-2 border-dashed border-gray-200 dark:border-gray-700 hover:border-[#008060] dark:hover:border-[#008060] rounded-lg p-5 cursor-pointer transition-colors text-center"
+                >
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="text-gray-300 dark:text-gray-600">
+                    <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  <span className="text-xs text-gray-400 dark:text-gray-500">Drop image or <span className="text-[#008060]">click to browse</span></span>
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); e.target.value = ""; }} />
+                </div>
+              )}
             </div>
 
             <div>

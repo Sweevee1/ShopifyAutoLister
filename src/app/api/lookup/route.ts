@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
   const manualHtml = body.manualHtml?.trim() ?? "";
   const tavilyApiKey = body.tavilyApiKey?.trim() || undefined;
   const claudeApiKey = body.claudeApiKey?.trim() || undefined;
+  const imageBase64 = body.imageBase64?.trim() || undefined;
 
   if (!barcode && !sku && !manualUrl && !manualHtml) {
     return err(
@@ -186,7 +187,8 @@ export async function POST(request: NextRequest) {
           productInfo,
           priceContext || undefined,
           usePastedHtml ? "paste" : "scrape",
-          claudeApiKey
+          claudeApiKey,
+          imageBase64
         )) {
           fullText += token;
           send({ type: "chunk", text: token });

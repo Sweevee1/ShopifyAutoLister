@@ -145,19 +145,27 @@ export async function* streamDescription(
   productInfo: Pick<BarcodeResult, "title" | "brand" | "category">,
   priceContext?: string,
   contentSource?: "scrape" | "paste",
-  claudeApiKey?: string
+  claudeApiKey?: string,
+  imageBase64?: string
 ): AsyncGenerator<string> {
   const parts = buildPromptParts(scrapedContent, productInfo, priceContext, contentSource);
 
   if (claudeApiKey) {
-    yield* streamWithClaudeApi(parts, claudeApiKey);
+    yield* streamWithClaudeApi(parts, claudeApiKey, imageBase64);
   } else {
     yield* streamWithOllama(parts);
   }
 }
 
-async function* streamWithClaudeApi(parts: string, apiKey: string): AsyncGenerator<string> {
+async function* streamWithClaudeApi(parts: string, apiKey: string, imageBase64?: string): AsyncGenerator<string> {
   const client = new Anthropic({ apiKey });
+
+  const userContent: Anthropic.MessageParam["content"] = imageBase64
+    ? [
+        { type: "image", source: { type: "base64", media_type: "image/jpeg", data: imageBase64 } },
+        { type: "text", text: `A product image is attached — use it to supplement the page content where it helps identify features, colours, or included items.\n\n${parts}` },
+      ]
+    : parts;
 
   try {
     const stream = client.messages.stream({
@@ -165,7 +173,7 @@ async function* streamWithClaudeApi(parts: string, apiKey: string): AsyncGenerat
       max_tokens: 2048,
       temperature: 0.1,
       system: SYSTEM_PROMPT,
-      messages: [{ role: "user", content: parts }],
+      messages: [{ role: "user", content: userContent }],
     });
 
     for await (const event of stream) {

@@ -17,6 +17,8 @@ export interface LookupRequest {
   tavilyApiKey?: string;
   /** User-supplied Anthropic API key — when set, uses Claude API instead of local Ollama */
   claudeApiKey?: string;
+  /** Base64-encoded product image (JPEG, no data-URL prefix) — used for vision when Claude API is active */
+  imageBase64?: string;
 }
 
 export interface LookupResponse {
