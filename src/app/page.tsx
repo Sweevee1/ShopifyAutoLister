@@ -171,26 +171,6 @@ const AI_PROVIDER_STORAGE = "ai_provider";
 const DARK_MODE_STORAGE = "dark_mode";
 const SHOPIFY_DOMAIN_STORAGE = "shopify_store_domain";
 const SHOPIFY_TOKEN_STORAGE = "shopify_admin_token";
-const UPC_USAGE_STORAGE = "upc_usage";
-const UPC_DAILY_LIMIT = 100;
-
-function loadUpcUsage(): number {
-  try {
-    const raw = localStorage.getItem(UPC_USAGE_STORAGE);
-    if (!raw) return 0;
-    const { count, date } = JSON.parse(raw) as { count: number; date: string };
-    return date === new Date().toISOString().slice(0, 10) ? count : 0;
-  } catch { return 0; }
-}
-
-function incrementUpcUsage(): number {
-  const next = loadUpcUsage() + 1;
-  localStorage.setItem(UPC_USAGE_STORAGE, JSON.stringify({
-    count: next,
-    date: new Date().toISOString().slice(0, 10),
-  }));
-  return next;
-}
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -230,7 +210,6 @@ export default function Home() {
   const [tavilyUsage, setTavilyUsage] = useState<{ used: number; limit: number } | null>(null);
   const [tavilyUsageLoading, setTavilyUsageLoading] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
-  const [upcUsage, setUpcUsage] = useState(0);
   const [showTavilyKey, setShowTavilyKey] = useState(false);
   const [showShopifyToken, setShowShopifyToken] = useState(false);
   const [claudeApiKey, setClaudeApiKey] = useState("");
@@ -240,7 +219,6 @@ export default function Home() {
   const [tavilyOpen, setTavilyOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [shopifyOpen, setShopifyOpen] = useState(false);
-  const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [productImage, setProductImage] = useState<{ base64: string; dataUrl: string; width: number; height: number } | null>(null);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
@@ -257,8 +235,6 @@ export default function Home() {
     setDarkMode(savedDark);
     setShopifyDomain(localStorage.getItem(SHOPIFY_DOMAIN_STORAGE) ?? "");
     setShopifyToken(localStorage.getItem(SHOPIFY_TOKEN_STORAGE) ?? "");
-    setUpcUsage(loadUpcUsage());
-
     async function checkOllama() {
       try {
         const res = await fetch("/api/ollama-status");
@@ -341,8 +317,6 @@ export default function Home() {
     setAppState({ phase: "loading", stepIndex: 0 });
     setShopifyPhase({ phase: "idle" });
     setDemoMode(false);
-    if (barcode.trim()) setUpcUsage(incrementUpcUsage());
-
     let currentStep = 0;
     stepTimerRef.current = setInterval(() => {
       currentStep = Math.min(currentStep + 1, STEPS.length - 1);
@@ -585,47 +559,6 @@ export default function Home() {
                         </div>
                       ) : null
                     )}
-                  </div>
-                )}
-              </div>
-
-              {/* ── Barcode lookup ── */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setBarcodeOpen((v) => !v)}
-                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Barcode lookup</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      upcUsage >= UPC_DAILY_LIMIT
-                        ? "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400"
-                        : upcUsage >= UPC_DAILY_LIMIT * 0.8
-                        ? "bg-amber-50 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400"
-                        : "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
-                    }`}>
-                      {upcUsage}/{UPC_DAILY_LIMIT} today
-                    </span>
-                  </div>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={`text-gray-400 transition-transform duration-200 ${barcodeOpen ? "rotate-180" : ""}`}>
-                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-                {barcodeOpen && (
-                  <div className="px-5 pb-4 flex flex-col gap-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        <span className="font-medium text-gray-700 dark:text-gray-200">{upcUsage}</span>
-                        {" / "}{UPC_DAILY_LIMIT} requests today · UPC Item DB · resets daily
-                      </span>
-                    </div>
-                    <div className="w-full h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${upcUsage >= UPC_DAILY_LIMIT ? "bg-red-500" : upcUsage >= UPC_DAILY_LIMIT * 0.8 ? "bg-amber-500" : "bg-[#008060]"}`}
-                        style={{ width: `${Math.min(100, (upcUsage / UPC_DAILY_LIMIT) * 100)}%` }}
-                      />
-                    </div>
                   </div>
                 )}
               </div>
