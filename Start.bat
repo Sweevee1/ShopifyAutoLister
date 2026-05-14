@@ -93,11 +93,9 @@ if %OLLAMA_FOUND% neq 0 (
 echo  Starting Shopify Auto-Lister...
 echo  Opening http://localhost:3000 in your browser in a moment.
 echo.
-echo  Close this window to stop the app.
+echo  To stop the app: run Stop.bat, or close this window.
 echo  ==========================================
 echo.
 
 start /b cmd /c "timeout /t 3 /nobreak >nul && start http://localhost:3000"
-npm run dev
-
-pause
+start "Shopify Auto-Lister Server" /wait cmd /k "npm run dev"
