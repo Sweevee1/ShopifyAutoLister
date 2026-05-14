@@ -74,7 +74,8 @@
       "Bash(Select-Object FullName)",
       "Bash(grep -E \"^\\\\s*//|^/\\\\*|^\\\\s*\\\\*\" \"A:\\\\Coding\\\\ShopifyAutoLister/src/lib\"/*.ts)",
       "Bash(grep -rn \"//\" \"A:\\\\Coding\\\\ShopifyAutoLister/src/app/page.tsx\")",
-      "Bash(grep -E \"^\\\\s*//|^\\\\s*/\\\\*\")"
+      "Bash(grep -E \"^\\\\s*//|^\\\\s*/\\\\*\")",
+      "Bash(gh release *)"
     ]
   }
 }
