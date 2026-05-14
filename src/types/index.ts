@@ -48,10 +48,3 @@ export interface ShopifyPushResult {
   productId: number;
   productUrl: string;
 }
-
-export type StepStatus = "idle" | "loading" | "done" | "error";
-
-export interface PipelineStep {
-  label: string;
-  status: StepStatus;
-}

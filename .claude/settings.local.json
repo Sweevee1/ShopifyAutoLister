@@ -69,7 +69,12 @@
       "Bash(npm show *)",
       "Skill(claude-api)",
       "Bash(Start-Sleep -Seconds 4)",
-      "Bash(Get-Content \"C:\\\\Users\\\\Luke\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\A--Coding-ShopifyAutoLister\\\\4e21f1fa-fff1-4535-8782-5f02b07a54ad\\\\tasks\\\\by6tz94we.output\" -Tail 20)"
+      "Bash(Get-Content \"C:\\\\Users\\\\Luke\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\A--Coding-ShopifyAutoLister\\\\4e21f1fa-fff1-4535-8782-5f02b07a54ad\\\\tasks\\\\by6tz94we.output\" -Tail 20)",
+      "Bash(Get-ChildItem -Path \"A:\\\\Coding\\\\ShopifyAutoLister\" -Recurse -Directory)",
+      "Bash(Select-Object FullName)",
+      "Bash(grep -E \"^\\\\s*//|^/\\\\*|^\\\\s*\\\\*\" \"A:\\\\Coding\\\\ShopifyAutoLister/src/lib\"/*.ts)",
+      "Bash(grep -rn \"//\" \"A:\\\\Coding\\\\ShopifyAutoLister/src/app/page.tsx\")",
+      "Bash(grep -E \"^\\\\s*//|^\\\\s*/\\\\*\")"
     ]
   }
 }
