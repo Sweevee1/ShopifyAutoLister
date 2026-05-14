@@ -57,7 +57,7 @@ Best if you want fast results without a large download. Uses Anthropic's servers
 
 2. Open the extracted folder and launch:
 
-   **Windows** — double-click **`Start.bat`**
+   **Windows** — double-click **`Start.bat`** to start, **`Stop.bat`** to stop
 
    **Mac / Linux** — open a terminal in the folder and run:
    ```bash
@@ -141,7 +141,7 @@ Copy `.env.example` to `.env` and fill in what you need. All variables are optio
 | `TAVILY_API_KEY` | _(none)_ | Enables auto product page search and AUD price signals. Can also be entered in Settings in the app. |
 | `OLLAMA_HOST` | `http://localhost:11434` | Ollama API base URL. Change if Ollama runs on a different port or machine. |
 | `OLLAMA_MODEL` | `qwen3:8b` | Ollama model to use. The prompt is tuned for Qwen3. |
-| `CLAUDE_MODEL` | `claude-haiku-4-5` | Claude API model used when a key is entered in Settings. |
+| `CLAUDE_MODEL` | `claude-sonnet-4-6` | Claude API model used when a key is entered in Settings. |
 
 ---
 

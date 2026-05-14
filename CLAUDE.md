@@ -26,7 +26,7 @@ npm run build   # production build
 ```
 
 **Launcher scripts** (double-click to run, opens browser automatically):
-- **Windows:** `Start.bat`
+- **Windows:** `Start.bat` — start the app; `Stop.bat` — stop it
 - **Mac/Linux:** `./start.sh`
 
 ## Environment variables
