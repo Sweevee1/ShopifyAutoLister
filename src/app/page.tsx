@@ -617,6 +617,33 @@ export default function Home() {
                         Claude API
                       </button>
                     </div>
+                    {aiProvider === "ollama" && ollamaStatus === "offline" && (
+                      <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 p-3.5 flex flex-col gap-2.5">
+                        <p className="text-xs font-semibold text-amber-700 dark:text-amber-400">Ollama is not running — setup guide</p>
+                        <ol className="flex flex-col gap-2 text-xs text-amber-800 dark:text-amber-300 list-none">
+                          <li className="flex gap-2">
+                            <span className="font-bold shrink-0">1.</span>
+                            <span>
+                              Download and install Ollama from{" "}
+                              <a href="https://ollama.com/download" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-900 dark:hover:text-amber-200">
+                                ollama.com/download
+                              </a>
+                            </span>
+                          </li>
+                          <li className="flex gap-2">
+                            <span className="font-bold shrink-0">2.</span>
+                            <span>Open a terminal and pull the model this app uses:</span>
+                          </li>
+                        </ol>
+                        <div className="flex items-center justify-between bg-amber-100 dark:bg-amber-900/40 rounded-md px-3 py-2 font-mono text-xs text-amber-900 dark:text-amber-200">
+                          <span>ollama pull qwen3:8b</span>
+                          <CopyButton text="ollama pull qwen3:8b" />
+                        </div>
+                        <p className="text-xs text-amber-700 dark:text-amber-400">
+                          Once Ollama is running, this page will detect it automatically within 15 seconds.
+                        </p>
+                      </div>
+                    )}
                     {aiProvider === "claude" && (
                       <div className="flex flex-col gap-1.5">
                         <label htmlFor="claudeKey" className="text-xs font-medium text-gray-500 dark:text-gray-400">
