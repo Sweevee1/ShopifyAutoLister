@@ -30,7 +30,7 @@ type EbayPhase =
   | { phase: "editing"; categoryId: string; price: string }
   | { phase: "confirming"; categoryId: string; price: string }
   | { phase: "pushing" }
-  | { phase: "done"; itemId: string; listingUrl: string }
+  | { phase: "done"; itemId: string; sellerHubUrl: string }
   | { phase: "error"; message: string };
 
 function extractPrice(priceStr: string): string {
@@ -289,6 +289,8 @@ export default function Home() {
   const [ebayToken, setEbayToken] = useState("");
   const [showEbayToken, setShowEbayToken] = useState(false);
   const [ebayPhase, setEbayPhase] = useState<EbayPhase>({ phase: "idle" });
+  const [ebayCategorySuggestions, setEbayCategorySuggestions] = useState<{ categoryId: string; categoryName: string }[]>([]);
+  const [ebayCategoriesLoading, setEbayCategoriesLoading] = useState(false);
   const [tavilyUsage, setTavilyUsage] = useState<{ used: number; limit: number } | null>(null);
   const [tavilyUsageLoading, setTavilyUsageLoading] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
@@ -333,6 +335,35 @@ export default function Home() {
     return () => clearInterval(ollamaInterval);
   }, []);
 
+  // Auto-fetch eBay category suggestions when eBay results are ready
+  const ebayResultQuery =
+    appState.phase === "success" && activeTab === "ebay"
+      ? (appState.data.ebayTitle ?? appState.data.productName)
+      : "";
+
+  useEffect(() => {
+    if (!ebayResultQuery) {
+      setEbayCategorySuggestions([]);
+      return;
+    }
+    let cancelled = false;
+    setEbayCategoriesLoading(true);
+    fetch(`/api/ebay-categories?q=${encodeURIComponent(ebayResultQuery)}`)
+      .then((r) => r.json())
+      .then((data: { categoryId: string; categoryName: string }[]) => {
+        if (cancelled || !Array.isArray(data) || data.length === 0) return;
+        setEbayCategorySuggestions(data);
+        setEbayPhase((prev) =>
+          prev.phase === "editing" && !prev.categoryId
+            ? { ...prev, categoryId: data[0].categoryId }
+            : prev
+        );
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setEbayCategoriesLoading(false); });
+    return () => { cancelled = true; };
+  }, [ebayResultQuery]);
+
   async function fetchTavilyUsage(key: string) {
     if (!key) return;
     setTavilyUsageLoading(true);
@@ -367,6 +398,7 @@ export default function Home() {
     setAppState({ phase: "idle" });
     setShopifyPhase({ phase: "idle" });
     setEbayPhase({ phase: "idle" });
+    setEbayCategorySuggestions([]);
     setDemoMode(false);
   }
 
@@ -567,7 +599,7 @@ export default function Home() {
       if (!res.ok) {
         setEbayPhase({ phase: "error", message: json.error ?? "Unknown error" });
       } else {
-        setEbayPhase({ phase: "done", itemId: json.itemId, listingUrl: json.listingUrl });
+        setEbayPhase({ phase: "done", itemId: json.itemId, sellerHubUrl: json.sellerHubUrl });
       }
     } catch {
       setEbayPhase({ phase: "error", message: "Network error — could not reach the server." });
@@ -1486,18 +1518,56 @@ export default function Home() {
                     ) : ebayPhase.phase === "editing" ? (
                       <div className="flex flex-col gap-3">
                         <div>
-                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
-                            eBay Category ID{" "}
-                            <a href="https://www.ebay.com.au/sch/allcategories/all-categories" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline font-normal">find yours ↗</a>
-                          </label>
+                          <div className="flex items-center justify-between mb-1.5">
+                            <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
+                              Category
+                            </label>
+                            <a href="https://www.ebay.com.au/sch/allcategories/all-categories" target="_blank" rel="noopener noreferrer" className="text-xs text-[#008060] hover:underline">browse all ↗</a>
+                          </div>
+
+                          {/* Suggestion chips */}
+                          {ebayCategoriesLoading ? (
+                            <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Finding suggested categories…</p>
+                          ) : ebayCategorySuggestions.length > 0 ? (
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              {ebayCategorySuggestions.map((s) => {
+                                const active = ebayPhase.categoryId === s.categoryId;
+                                return (
+                                  <button
+                                    key={s.categoryId}
+                                    type="button"
+                                    onClick={() => setEbayPhase({ phase: "editing", categoryId: s.categoryId, price: (ebayPhase as { phase: "editing"; categoryId: string; price: string }).price })}
+                                    className={`text-xs px-2.5 py-1 rounded-full border font-medium transition-colors ${
+                                      active
+                                        ? "bg-[#e53238] border-[#e53238] text-white"
+                                        : "bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-[#e53238] hover:text-[#e53238]"
+                                    }`}
+                                  >
+                                    {s.categoryName}
+                                    <span className={`ml-1 font-mono ${active ? "opacity-80" : "opacity-50"}`}>·{s.categoryId}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          ) : null}
+
+                          {/* Manual ID input */}
                           <input
                             type="text"
                             inputMode="numeric"
                             value={ebayPhase.categoryId}
                             onChange={(e) => setEbayPhase({ phase: "editing", categoryId: e.target.value, price: (ebayPhase as { phase: "editing"; categoryId: string; price: string }).price })}
-                            placeholder="e.g. 9355"
+                            placeholder="Category ID  e.g. 9355"
                             className={`${inputCls} font-mono`}
                           />
+
+                          {/* Show the name of whatever ID is currently typed */}
+                          {(() => {
+                            const match = ebayCategorySuggestions.find((s) => s.categoryId === ebayPhase.categoryId);
+                            return match ? (
+                              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 pl-0.5">{match.categoryName}</p>
+                            ) : null;
+                          })()}
                         </div>
                         <div>
                           <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Price (AUD)</label>
@@ -1540,8 +1610,11 @@ export default function Home() {
                             <span className="font-medium">{appState.data.ebayTitle ?? appState.data.productName}</span>
                           </p>
                           <p className="text-sm text-gray-700 dark:text-gray-200">
-                            <span className="text-gray-400 dark:text-gray-500 text-xs">Category ID</span>{" "}
-                            <span className="font-mono font-medium">{ebayPhase.categoryId}</span>
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Category</span>{" "}
+                            <span className="font-medium">
+                              {ebayCategorySuggestions.find((s) => s.categoryId === ebayPhase.categoryId)?.categoryName ?? ebayPhase.categoryId}
+                            </span>{" "}
+                            <span className="font-mono text-xs text-gray-400">({ebayPhase.categoryId})</span>
                           </p>
                           <p className="text-sm text-gray-700 dark:text-gray-200">
                             <span className="text-gray-400 dark:text-gray-500 text-xs">Price</span>{" "}
@@ -1551,7 +1624,7 @@ export default function Home() {
                             <span className="text-gray-400 dark:text-gray-500 text-xs">Condition</span>{" "}
                             <span className="font-medium">{appState.data.ebayCondition ?? "New"}</span>
                           </p>
-                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">This creates a live listing on eBay.com.au immediately.</p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Saved as a scheduled listing — not live yet. Activate it from Seller Hub when ready.</p>
                         </div>
                         <div className="flex gap-2">
                           <button
@@ -1587,26 +1660,28 @@ export default function Home() {
                       <div className="flex flex-col gap-3">
                         <div className="flex items-center gap-2">
                           <span className="w-5 h-5 rounded-full bg-[#e53238] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">✓</span>
-                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Listing created! Item #{ebayPhase.itemId}</p>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Draft saved! Item #{ebayPhase.itemId}</p>
                         </div>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Scheduled listing created — go to Seller Hub to review and activate when ready.</p>
                         <div className="flex gap-2">
                           <a
-                            href={ebayPhase.listingUrl}
+                            href={ebayPhase.sellerHubUrl}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="text-sm px-4 py-2 bg-[#e53238] hover:bg-[#c02a2f] text-white rounded-lg font-medium transition-colors"
                           >
-                            View on eBay ↗
+                            Open Seller Hub ↗
                           </a>
                           <button
                             type="button"
                             onClick={() => {
                               const price = extractPrice(appState.data.price);
-                              setEbayPhase({ phase: "editing", categoryId: "", price });
+                              const topCat = ebayCategorySuggestions[0]?.categoryId ?? "";
+                              setEbayPhase({ phase: "editing", categoryId: topCat, price });
                             }}
                             className="text-sm px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                           >
-                            List again
+                            Save another
                           </button>
                         </div>
                       </div>
@@ -1633,6 +1708,7 @@ export default function Home() {
                 setAppState({ phase: "idle" });
                 setShopifyPhase({ phase: "idle" });
                 setEbayPhase({ phase: "idle" });
+                setEbayCategorySuggestions([]);
                 setBarcode("");
                 setManualUrl("");
                 setManualHtml("");

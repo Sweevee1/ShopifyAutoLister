@@ -20,7 +20,7 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await createEbayListing({ userToken, title, descriptionHtml, price, categoryId, condition, itemSpecifics });
-    return NextResponse.json(result);
+    return NextResponse.json(result); // { itemId, sellerHubUrl }
   } catch (e: unknown) {
     const msg = e instanceof Error ? e.message : "Unknown error";
     return NextResponse.json({ error: msg }, { status: 500 });
