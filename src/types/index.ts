@@ -18,6 +18,8 @@ export interface LookupRequest {
   claudeApiKey?: string;
   /** Base64-encoded product image (JPEG, no data-URL prefix) — used for vision when Claude API is active */
   imageBase64?: string;
+  /** Target platform — controls AI prompt and output format */
+  platform?: "shopify" | "ebay";
 }
 
 export interface LookupResponse {
@@ -27,6 +29,10 @@ export interface LookupResponse {
   /** Empty when generation used pasted HTML only without a URL */
   sourceUrl: string;
   productName: string;
+  /** eBay only */
+  ebayTitle?: string;
+  ebayCondition?: string;
+  ebayItemSpecifics?: Record<string, string>;
 }
 
 export interface LookupError {

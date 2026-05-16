@@ -45,6 +45,7 @@ export async function POST(request: NextRequest) {
   const tavilyApiKey = body.tavilyApiKey?.trim() || undefined;
   const claudeApiKey = body.claudeApiKey?.trim() || undefined;
   const imageBase64 = body.imageBase64?.trim() || undefined;
+  const platform: "shopify" | "ebay" = body.platform === "ebay" ? "ebay" : "shopify";
 
   if (!barcode && !manualUrl && !manualHtml && !imageBase64) {
     return err(
@@ -182,7 +183,8 @@ export async function POST(request: NextRequest) {
           priceContext || undefined,
           contentSource,
           claudeApiKey,
-          imageBase64
+          imageBase64,
+          platform
         )) {
           fullText += token;
           send({ type: "chunk", text: token });
@@ -190,7 +192,15 @@ export async function POST(request: NextRequest) {
 
         const parsed = parseOutput(fullText);
         console.log(`[lookup] generated ${parsed.html.length} chars of HTML, price: ${parsed.price}`);
-        send({ type: "done", html: parsed.html, price: parsed.price, altText: parsed.altText });
+        send({
+          type: "done",
+          html: parsed.html,
+          price: parsed.price,
+          altText: parsed.altText,
+          ebayTitle: parsed.ebayTitle,
+          ebayCondition: parsed.ebayCondition,
+          ebayItemSpecifics: parsed.ebayItemSpecifics,
+        });
       } catch (e) {
         console.error("[lookup] generation error:", e);
         send({ type: "error", error: "Failed to generate product description.", errorCode: "GENERATION_FAILED" });

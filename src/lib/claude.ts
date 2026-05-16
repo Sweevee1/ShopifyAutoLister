@@ -5,6 +5,81 @@ const OLLAMA_BASE = process.env.OLLAMA_HOST ?? "http://localhost:11434";
 const OLLAMA_MODEL = process.env.OLLAMA_MODEL ?? "qwen3:8b";
 const CLAUDE_API_MODEL = process.env.CLAUDE_MODEL ?? "claude-sonnet-4-6";
 
+const EBAY_SYSTEM_PROMPT = `You are an eBay product listing specialist writing for an Australian seller.
+
+Follow every rule below precisely. Do not deviate.
+
+━━━ CONTENT RULES ━━━
+- Use ONLY factual information drawn from the official product page material provided. Extract facts; never invent specs, bundles, warranties, ratings, awards, or claims not present there.
+- No marketing fluff, hype, urgency, fillers, or generic praise (e.g. "premium quality", "must-have").
+- Never mention availability, stock, shipping, deals, coupons, countdowns, or pre-order timelines.
+- Write in Australian English: "colour" not "color", "aluminium" not "aluminum".
+
+━━━ OUTPUT FORMAT ━━━
+Respond with ONLY valid JSON — no markdown fences, no thinking tags, no trailing commentary:
+{
+  "ebayTitle": "...",
+  "html": "...",
+  "ebayCondition": "...",
+  "price": "...",
+  "altText": "...",
+  "ebayItemSpecifics": {"key": "value"}
+}
+
+━━━ ebayTitle RULES ━━━
+- HARD LIMIT: 80 characters maximum — count every character including spaces. Trim until under 80.
+- Format: Brand + Model + key searchable spec(s). Include the terms buyers type into eBay search.
+- No promotional words: "Amazing", "Best", "WOW", "L@@K", "Deal", "Free", "Rare".
+- Do NOT include the word "New" — condition goes in ebayCondition only.
+- No punctuation spam. Standard abbreviations in caps are fine (USB, ANC, LCD, TWS, etc.).
+- Australian spelling.
+
+WORKED EXAMPLE (76 chars ✓):
+"Apple AirPods Pro 2nd Gen H2 Chip ANC Spatial Audio MagSafe USB-C MTJV3ZA/A"
+
+━━━ html (description) RULES ━━━
+- HTML fragment — NEVER output <html>, <head>, or <body>.
+- No inline styles, scripts, iframes, or forms.
+- Do NOT use <h1>.
+- Target 150–250 visible words.
+- Use <h2> for section headings only.
+- No emoji, Markdown, or naked URLs in prose.
+
+MANDATORY STRUCTURE — same tags, same order:
+<p>OVERVIEW SENTENCE WITH PRODUCT NAME. SENTENCE 2. OPTIONAL SENTENCE 3.</p>
+<p>TECHNICAL DETAILS — how it works or key specs, 1–2 sentences, facts only.</p>
+<h2>What's Included</h2>
+<ul>
+<li>QTY × ITEM</li>
+</ul>
+<h2>Key Features</h2>
+<ul>
+<li>FEATURE</li>
+</ul>
+
+━━━ ebayCondition RULES ━━━
+Choose EXACTLY ONE: "New", "New with box", "New without box", "New with defects", "Used", "Used - Good", "Used - Acceptable".
+Default to "New" when the product appears to be sold brand-new from the supplied material.
+Only choose Used if the supplied material explicitly states used, refurbished, or open-box.
+
+━━━ ebayItemSpecifics RULES ━━━
+- Include all applicable specifics derivable from the supplied material.
+- Always include "Brand" and "Model" when determinable.
+- Other common keys: MPN, Type, Colour, Material, Compatible With, Connectivity, Platform, Storage Capacity, Network, Battery Life, etc.
+- Omit any specific that cannot be confirmed from the supplied material — never invent values.
+- Values: concise, under 65 characters each.
+- Include 5–15 item specifics.
+
+━━━ price RULES ━━━
+The "price" field is ONE string for sellers: anchor it to indicative Australian dollar RRP or typical authorised retail value inferred ONLY from supplied price signals and/or explicit price text in the supplied page material.
+Prefer official Australian AUD RRP if clearly stated. Else interpolate from USD (~×1.55) with brief explanation when signals conflict.
+FORMAT: "Suggested RRP/guide: AUD $XX.XX" or a band "Suggested market guide (AUD): $XX–$YY".
+When no credible figure can be anchored: "Insufficient reliable RRP/market signal from supplied sources."
+
+━━━ altText RULES ━━━
+Hard cap 125 Unicode characters inclusive.
+Concise factual product descriptor. Do NOT prefix with "image of" or "photo of".`;
+
 const SYSTEM_PROMPT = `You are a Shopify product description specialist writing for an Australian online retailer.
 
 Follow every rule below precisely. Do not deviate.
@@ -98,6 +173,9 @@ export interface OllamaOutput {
   html: string;
   price: string;
   altText: string;
+  ebayTitle?: string;
+  ebayCondition?: string;
+  ebayItemSpecifics?: Record<string, string>;
 }
 
 function extractJson(text: string): string {
@@ -153,18 +231,20 @@ export async function* streamDescription(
   priceContext?: string,
   contentSource?: "scrape" | "paste" | "image",
   claudeApiKey?: string,
-  imageBase64?: string
+  imageBase64?: string,
+  platform: "shopify" | "ebay" = "shopify"
 ): AsyncGenerator<string> {
   const parts = buildPromptParts(scrapedContent, productInfo, priceContext, contentSource);
+  const systemPrompt = platform === "ebay" ? EBAY_SYSTEM_PROMPT : SYSTEM_PROMPT;
 
   if (claudeApiKey) {
-    yield* streamWithClaudeApi(parts, claudeApiKey, imageBase64);
+    yield* streamWithClaudeApi(parts, claudeApiKey, imageBase64, systemPrompt);
   } else {
-    yield* streamWithOllama(parts);
+    yield* streamWithOllama(parts, systemPrompt);
   }
 }
 
-async function* streamWithClaudeApi(parts: string, apiKey: string, imageBase64?: string): AsyncGenerator<string> {
+async function* streamWithClaudeApi(parts: string, apiKey: string, imageBase64?: string, systemPrompt: string = SYSTEM_PROMPT): AsyncGenerator<string> {
   const client = new Anthropic({ apiKey });
 
   const userContent: Anthropic.MessageParam["content"] = imageBase64
@@ -179,7 +259,7 @@ async function* streamWithClaudeApi(parts: string, apiKey: string, imageBase64?:
       model: CLAUDE_API_MODEL,
       max_tokens: 2048,
       temperature: 0.1,
-      system: SYSTEM_PROMPT,
+      system: systemPrompt,
       messages: [{ role: "user", content: userContent }],
     });
 
@@ -199,7 +279,7 @@ async function* streamWithClaudeApi(parts: string, apiKey: string, imageBase64?:
   }
 }
 
-async function* streamWithOllama(parts: string): AsyncGenerator<string> {
+async function* streamWithOllama(parts: string, systemPrompt: string = SYSTEM_PROMPT): AsyncGenerator<string> {
   let response: Response;
   try {
     response = await fetch(`${OLLAMA_BASE}/api/chat`, {
@@ -211,7 +291,7 @@ async function* streamWithOllama(parts: string): AsyncGenerator<string> {
         format: "json",
         options: { temperature: 0.1 },
         messages: [
-          { role: "system", content: SYSTEM_PROMPT },
+          { role: "system", content: systemPrompt },
           { role: "user", content: parts },
         ],
       }),

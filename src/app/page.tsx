@@ -56,6 +56,66 @@ const DEMO_DATA: LookupResponse = {
   altText: "Apple AirPods Pro 2nd Generation with MagSafe Charging Case USB-C in white, featuring H2 chip and Active Noise Cancellation",
 };
 
+const DEMO_DATA_EBAY: LookupResponse = {
+  productName: "Apple AirPods Pro (2nd Generation)",
+  sourceUrl: "https://www.apple.com/au/shop/product/MTJV3ZA/A/airpods-pro",
+  html: `<p>The Apple AirPods Pro (2nd Generation) are wireless earbuds featuring Active Noise Cancellation driven by the H2 chip, designed to adapt to your ear geometry and surrounding environment. Adaptive Transparency lets you hear the world while your audio continues uninterrupted. Volume control via a touch swipe on the stem is a first for AirPods.</p>
+<p>The MagSafe Charging Case (USB-C) provides up to 30 hours of total listening time and is compatible with MagSafe, Apple Watch charger, USB-C, and Qi charging pads.</p>
+<h2>What's Included</h2>
+<ul>
+<li>1 × AirPods Pro (2nd generation)</li>
+<li>1 × MagSafe Charging Case (USB-C)</li>
+<li>4 × Silicone ear tip sets (XS, S, M, L)</li>
+<li>1 × USB-C to MagSafe Charging Cable</li>
+</ul>
+<h2>Key Features</h2>
+<ul>
+<li>Apple H2 chip — up to 2× more noise cancellation than previous gen</li>
+<li>Active Noise Cancellation with Adaptive Transparency</li>
+<li>Personalised Spatial Audio with dynamic head tracking</li>
+<li>Touch control on stem for volume adjustment</li>
+<li>Up to 6 hours listening time (30 hours total with case)</li>
+<li>IP54 water and dust resistance (earbuds and case)</li>
+<li>Bluetooth 5.3 connectivity</li>
+</ul>`,
+  price: "Suggested RRP/guide: AUD $399.00",
+  altText: "Apple AirPods Pro 2nd Generation with MagSafe Charging Case USB-C in white, featuring H2 chip",
+  ebayTitle: "Apple AirPods Pro 2nd Gen H2 Chip ANC Spatial Audio MagSafe USB-C MTJV3ZA/A",
+  ebayCondition: "New",
+  ebayItemSpecifics: {
+    "Brand": "Apple",
+    "Model": "AirPods Pro (2nd Generation)",
+    "MPN": "MTJV3ZA/A",
+    "Type": "In-Ear",
+    "Connectivity": "Bluetooth 5.3",
+    "Colour": "White",
+    "Compatible With": "iPhone, iPad, Mac",
+    "Features": "Active Noise Cancellation, Spatial Audio, Adaptive Transparency",
+    "Battery Life": "Up to 6 hours (30 hours with case)",
+    "Charging": "MagSafe, USB-C, Apple Watch, Qi",
+    "Water Resistance": "IP54",
+  },
+};
+
+function buildEbayCopyPack(data: LookupResponse): string {
+  const specifics = data.ebayItemSpecifics
+    ? Object.entries(data.ebayItemSpecifics).map(([k, v]) => `${k}: ${v}`).join("\n")
+    : "";
+  return [
+    `Title: ${data.ebayTitle ?? data.productName}`,
+    `Condition: ${data.ebayCondition ?? "New"}`,
+    `Price: ${data.price}`,
+    "",
+    "Description HTML:",
+    data.html,
+    "",
+    "Item Specifics:",
+    specifics,
+    "",
+    `Alt text: ${data.altText}`,
+  ].join("\n");
+}
+
 const inputCls =
   "w-full border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#008060] focus:border-transparent transition-shadow";
 
@@ -196,7 +256,17 @@ function ShopifyBagIcon({ size = 18, stroke = "currentColor" }: { size?: number;
   );
 }
 
+function EbayTagIcon({ size = 18, stroke = "currentColor" }: { size?: number; stroke?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" stroke={stroke} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+      <line x1="7" y1="7" x2="7.01" y2="7" stroke={stroke} strokeWidth="2.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export default function Home() {
+  const [activeTab, setActiveTab] = useState<"shopify" | "ebay">("shopify");
   const [barcode, setBarcode] = useState("");
   const [manualUrl, setManualUrl] = useState("");
   const [manualHtml, setManualHtml] = useState("");
@@ -277,6 +347,14 @@ export default function Home() {
     document.documentElement.classList.toggle("dark", next);
   }
 
+  function handleTabSwitch(tab: "shopify" | "ebay") {
+    if (tab === activeTab) return;
+    setActiveTab(tab);
+    setAppState({ phase: "idle" });
+    setShopifyPhase({ phase: "idle" });
+    setDemoMode(false);
+  }
+
   function clearStepTimer() {
     if (stepTimerRef.current) {
       clearInterval(stepTimerRef.current);
@@ -313,6 +391,7 @@ export default function Home() {
     e.preventDefault();
     if (!barcode.trim() && !manualUrl.trim() && !manualHtml.trim() && !productImage) return;
 
+    const platform = activeTab;
     clearStepTimer();
     setAppState({ phase: "loading", stepIndex: 0 });
     setShopifyPhase({ phase: "idle" });
@@ -338,6 +417,7 @@ export default function Home() {
           tavilyApiKey: tavilyKey.trim() || undefined,
           claudeApiKey: aiProvider === "claude" ? claudeApiKey.trim() || undefined : undefined,
           imageBase64: aiProvider === "claude" ? productImage?.base64 : undefined,
+          platform,
         }),
       });
 
@@ -374,22 +454,33 @@ export default function Home() {
         buf = lines.pop()!;
         for (const line of lines) {
           if (!line.trim()) continue;
-          const msg = JSON.parse(line) as Record<string, string>;
+          const msg = JSON.parse(line) as Record<string, unknown>;
           if (msg.type === "meta") {
-            sourceUrl = msg.sourceUrl;
-            productName = msg.productName;
+            sourceUrl = msg.sourceUrl as string;
+            productName = msg.productName as string;
             setAppState({ phase: "streaming", liveText: "", sourceUrl, productName });
           } else if (msg.type === "chunk") {
-            liveText += msg.text;
+            liveText += msg.text as string;
             setAppState({ phase: "streaming", liveText, sourceUrl, productName });
           } else if (msg.type === "done") {
             setAppState({
               phase: "success",
-              data: { html: msg.html, price: msg.price, altText: msg.altText, sourceUrl, productName },
+              data: {
+                html: msg.html as string,
+                price: msg.price as string,
+                altText: msg.altText as string,
+                sourceUrl,
+                productName,
+                ebayTitle: msg.ebayTitle as string | undefined,
+                ebayCondition: msg.ebayCondition as string | undefined,
+                ebayItemSpecifics: msg.ebayItemSpecifics as Record<string, string> | undefined,
+              },
             });
-            setShopifyPhase({ phase: "editing", title: productName, price: extractPrice(msg.price) });
+            if (platform === "shopify") {
+              setShopifyPhase({ phase: "editing", title: productName, price: extractPrice(msg.price as string) });
+            }
           } else if (msg.type === "error") {
-            setAppState({ phase: "error", data: { error: msg.error, errorCode: msg.errorCode } });
+            setAppState({ phase: "error", data: { error: msg.error as string, errorCode: msg.errorCode as string } });
           }
         }
       }
@@ -442,14 +533,14 @@ export default function Home() {
       <div className="max-w-2xl mx-auto px-4 py-8">
 
         {/* Header */}
-        <header className="mb-6 flex items-center justify-between">
+        <header className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-[#008060] flex items-center justify-center flex-shrink-0 shadow-sm">
               <ShopifyBagIcon size={18} stroke="white" />
             </div>
             <div>
-              <h1 className="text-base font-semibold text-gray-900 dark:text-white leading-tight">Shopify Auto-Lister</h1>
-              <p className="text-xs text-gray-400 dark:text-gray-500">Barcode → Shopify-ready listing</p>
+              <h1 className="text-base font-semibold text-gray-900 dark:text-white leading-tight">Auto-Lister</h1>
+              <p className="text-xs text-gray-400 dark:text-gray-500">Shopify &amp; eBay listing generator</p>
             </div>
           </div>
           <button
@@ -471,6 +562,34 @@ export default function Home() {
             </span>
           </button>
         </header>
+
+        {/* Platform tabs */}
+        <div className="flex gap-1 mb-4 p-1 bg-gray-100 dark:bg-gray-800 rounded-xl self-start w-fit">
+          <button
+            type="button"
+            onClick={() => handleTabSwitch("shopify")}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === "shopify"
+                ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            }`}
+          >
+            <ShopifyBagIcon size={14} stroke="currentColor" />
+            Shopify
+          </button>
+          <button
+            type="button"
+            onClick={() => handleTabSwitch("ebay")}
+            className={`flex items-center gap-1.5 px-4 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+              activeTab === "ebay"
+                ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm"
+                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+            }`}
+          >
+            <EbayTagIcon size={14} stroke="currentColor" />
+            eBay
+          </button>
+        </div>
 
         {/* Settings */}
         <div className={`${card} mb-4 overflow-hidden`}>
@@ -672,61 +791,63 @@ export default function Home() {
               </div>
 
               {/* ── Shopify ── */}
-              <div>
-                <button
-                  type="button"
-                  onClick={() => setShopifyOpen((v) => !v)}
-                  className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Shopify</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                      shopifyDomain && shopifyToken
-                        ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
-                        : "bg-gray-100 dark:bg-gray-800 text-gray-400"
-                    }`}>
-                      {shopifyDomain && shopifyToken ? "Shopify ✓" : "Not set"}
-                    </span>
-                  </div>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={`text-gray-400 transition-transform duration-200 ${shopifyOpen ? "rotate-180" : ""}`}>
-                    <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </button>
-                {shopifyOpen && (
-                  <div className="px-5 pb-4 flex flex-col gap-2">
-                    <label htmlFor="shopifyDomain" className="text-xs text-gray-500 dark:text-gray-400">Store domain</label>
-                    <input
-                      id="shopifyDomain"
-                      type="text"
-                      value={shopifyDomain}
-                      onChange={(e) => { setShopifyDomain(e.target.value); localStorage.setItem(SHOPIFY_DOMAIN_STORAGE, e.target.value); }}
-                      placeholder="my-store.myshopify.com"
-                      className={`${inputCls} font-mono`}
-                    />
-                    <label htmlFor="shopifyToken" className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                      Admin API token (
-                      <a href="https://shopify.dev/docs/apps/build/authentication-authorization/access-token/generate-app-access-tokens-admin" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">
-                        how to get one
-                      </a>
-                      )
-                    </label>
-                    <div className="relative">
-                      <input
-                        id="shopifyToken"
-                        type={showShopifyToken ? "text" : "password"}
-                        value={shopifyToken}
-                        onChange={(e) => { setShopifyToken(e.target.value); localStorage.setItem(SHOPIFY_TOKEN_STORAGE, e.target.value); }}
-                        placeholder="shpat_..."
-                        className={`${inputCls} font-mono pr-9`}
-                      />
-                      <button type="button" onClick={() => setShowShopifyToken((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-                        <EyeIcon open={showShopifyToken} />
-                      </button>
+              {activeTab === "shopify" && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setShopifyOpen((v) => !v)}
+                    className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Shopify</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        shopifyDomain && shopifyToken
+                          ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                      }`}>
+                        {shopifyDomain && shopifyToken ? "Shopify ✓" : "Not set"}
+                      </span>
                     </div>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Saved in your browser only — never sent anywhere except your Shopify store.</p>
-                  </div>
-                )}
-              </div>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={`text-gray-400 transition-transform duration-200 ${shopifyOpen ? "rotate-180" : ""}`}>
+                      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  {shopifyOpen && (
+                    <div className="px-5 pb-4 flex flex-col gap-2">
+                      <label htmlFor="shopifyDomain" className="text-xs text-gray-500 dark:text-gray-400">Store domain</label>
+                      <input
+                        id="shopifyDomain"
+                        type="text"
+                        value={shopifyDomain}
+                        onChange={(e) => { setShopifyDomain(e.target.value); localStorage.setItem(SHOPIFY_DOMAIN_STORAGE, e.target.value); }}
+                        placeholder="my-store.myshopify.com"
+                        className={`${inputCls} font-mono`}
+                      />
+                      <label htmlFor="shopifyToken" className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                        Admin API token (
+                        <a href="https://shopify.dev/docs/apps/build/authentication-authorization/access-token/generate-app-access-tokens-admin" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">
+                          how to get one
+                        </a>
+                        )
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="shopifyToken"
+                          type={showShopifyToken ? "text" : "password"}
+                          value={shopifyToken}
+                          onChange={(e) => { setShopifyToken(e.target.value); localStorage.setItem(SHOPIFY_TOKEN_STORAGE, e.target.value); }}
+                          placeholder="shpat_..."
+                          className={`${inputCls} font-mono pr-9`}
+                        />
+                        <button type="button" onClick={() => setShowShopifyToken((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                          <EyeIcon open={showShopifyToken} />
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Saved in your browser only — never sent anywhere except your Shopify store.</p>
+                    </div>
+                  )}
+                </div>
+              )}
 
             </div>
           )}
@@ -865,9 +986,12 @@ export default function Home() {
                 setAppState({ phase: "idle" });
                 setShopifyPhase({ phase: "idle" });
               } else {
+                const demoData = activeTab === "ebay" ? DEMO_DATA_EBAY : DEMO_DATA;
                 setDemoMode(true);
-                setShopifyPhase({ phase: "editing", title: DEMO_DATA.productName, price: extractPrice(DEMO_DATA.price) });
-                setAppState({ phase: "success", data: DEMO_DATA });
+                if (activeTab === "shopify") {
+                  setShopifyPhase({ phase: "editing", title: demoData.productName, price: extractPrice(demoData.price) });
+                }
+                setAppState({ phase: "success", data: demoData });
               }
             }}
             className="mt-3 w-full py-2 text-sm text-gray-400 dark:text-gray-500 hover:text-[#008060] dark:hover:text-[#008060] border border-dashed border-gray-200 dark:border-gray-700 hover:border-[#008060] rounded-lg transition-colors"
@@ -965,188 +1089,278 @@ export default function Home() {
               />
             </div>
 
-            {/* Shopify HTML */}
-            <div className={card}>
-              <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-800">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Shopify HTML</p>
-                <CopyButton text={appState.data.html} />
-              </div>
-              <pre className="text-xs bg-gray-950 text-gray-300 p-5 rounded-b-xl overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed">
-                <code>{appState.data.html}</code>
-              </pre>
-            </div>
-
-            {/* Details */}
-            <div className={`${card} px-5 py-4 flex flex-col gap-3`}>
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Details</p>
-                <CopyButton text={buildCopyPack(appState.data)} label="Copy all" />
-              </div>
-              <div>
-                <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Suggested price</p>
-                <p className="text-sm font-semibold text-[#008060]">{appState.data.price}</p>
-              </div>
-              <div className="flex items-start justify-between gap-4 pt-3 border-t border-gray-100 dark:border-gray-800">
-                <div className="min-w-0">
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
-                    Alt text{" "}
-                    <span className="tabular-nums">({appState.data.altText.length}/125)</span>
-                  </p>
-                  <p className="text-sm text-gray-700 dark:text-gray-300 break-words">{appState.data.altText}</p>
+            {/* ── Shopify output ── */}
+            {activeTab === "shopify" && (
+              <>
+                {/* Shopify HTML */}
+                <div className={card}>
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Shopify HTML</p>
+                    <CopyButton text={appState.data.html} />
+                  </div>
+                  <pre className="text-xs bg-gray-950 text-gray-300 p-5 rounded-b-xl overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed">
+                    <code>{appState.data.html}</code>
+                  </pre>
                 </div>
-                <CopyButton text={appState.data.altText} />
-              </div>
-            </div>
 
-            {/* Shopify Push Panel */}
-            <div className={card}>
-              <div className="flex items-center gap-2.5 px-5 py-3 border-b border-gray-100 dark:border-gray-800">
-                <div className="w-4 h-4 rounded-md bg-[#008060] flex items-center justify-center flex-shrink-0">
-                  <ShopifyBagIcon size={9} stroke="white" />
+                {/* Details */}
+                <div className={`${card} px-5 py-4 flex flex-col gap-3`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Details</p>
+                    <CopyButton text={buildCopyPack(appState.data)} label="Copy all" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Suggested price</p>
+                    <p className="text-sm font-semibold text-[#008060]">{appState.data.price}</p>
+                  </div>
+                  <div className="flex items-start justify-between gap-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
+                        Alt text{" "}
+                        <span className="tabular-nums">({appState.data.altText.length}/125)</span>
+                      </p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 break-words">{appState.data.altText}</p>
+                    </div>
+                    <CopyButton text={appState.data.altText} />
+                  </div>
                 </div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Push to Shopify</p>
-              </div>
-              <div className="p-5">
-                {!demoMode && (!shopifyDomain || !shopifyToken) ? (
-                  <p className="text-sm text-gray-400 dark:text-gray-500">
-                    Add Shopify credentials in{" "}
-                    <button
-                      type="button"
-                      onClick={() => setSettingsOpen(true)}
-                      className="text-[#008060] hover:underline font-medium"
-                    >
-                      Settings
-                    </button>{" "}
-                    to enable pushing.
-                  </p>
-                ) : shopifyPhase.phase === "editing" ? (
-                  <div className="flex flex-col gap-3">
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Product Title</label>
-                      <input
-                        type="text"
-                        value={shopifyPhase.title}
-                        onChange={(e) => setShopifyPhase({ phase: "editing", title: e.target.value, price: (shopifyPhase as { phase: "editing"; title: string; price: string }).price })}
-                        className={inputCls}
-                      />
+
+                {/* Shopify Push Panel */}
+                <div className={card}>
+                  <div className="flex items-center gap-2.5 px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+                    <div className="w-4 h-4 rounded-md bg-[#008060] flex items-center justify-center flex-shrink-0">
+                      <ShopifyBagIcon size={9} stroke="white" />
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Price (AUD)</label>
-                      <input
-                        type="text"
-                        value={shopifyPhase.price}
-                        onChange={(e) => setShopifyPhase({ phase: "editing", title: (shopifyPhase as { phase: "editing"; title: string; price: string }).title, price: e.target.value })}
-                        placeholder="49.99"
-                        className={`${inputCls} font-mono`}
-                      />
-                    </div>
-                    <div className="flex gap-2 pt-1">
-                      <button
-                        type="button"
-                        onClick={() => setShopifyPhase({ phase: "idle" })}
-                        className="px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (shopifyPhase.phase === "editing") {
-                            setShopifyPhase({ phase: "confirming", title: shopifyPhase.title, price: shopifyPhase.price });
-                          }
-                        }}
-                        disabled={!shopifyPhase.title.trim() || !shopifyPhase.price.trim()}
-                        className="px-4 py-2 text-sm bg-[#008060] hover:bg-[#006e52] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                      >
-                        Review →
-                      </button>
-                    </div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Push to Shopify</p>
                   </div>
-                ) : shopifyPhase.phase === "confirming" ? (
-                  <div className="flex flex-col gap-3">
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 flex flex-col gap-1.5">
-                      <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Confirm push</p>
-                      <p className="text-sm text-gray-700 dark:text-gray-200">
-                        <span className="text-gray-400 dark:text-gray-500 text-xs">Title</span>{" "}
-                        <span className="font-medium">{shopifyPhase.title}</span>
+                  <div className="p-5">
+                    {!demoMode && (!shopifyDomain || !shopifyToken) ? (
+                      <p className="text-sm text-gray-400 dark:text-gray-500">
+                        Add Shopify credentials in{" "}
+                        <button
+                          type="button"
+                          onClick={() => setSettingsOpen(true)}
+                          className="text-[#008060] hover:underline font-medium"
+                        >
+                          Settings
+                        </button>{" "}
+                        to enable pushing.
                       </p>
-                      <p className="text-sm text-gray-700 dark:text-gray-200">
-                        <span className="text-gray-400 dark:text-gray-500 text-xs">Price</span>{" "}
-                        <span className="font-semibold text-[#008060]">${shopifyPhase.price} AUD</span>
-                      </p>
-                      <p className="text-sm text-gray-700 dark:text-gray-200">
-                        <span className="text-gray-400 dark:text-gray-500 text-xs">Status</span>{" "}
-                        <span className="font-medium">Draft</span>
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (shopifyPhase.phase === "confirming") {
-                            setShopifyPhase({ phase: "editing", title: shopifyPhase.title, price: shopifyPhase.price });
-                          }
-                        }}
-                        className="px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                      >
-                        ← Back
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (shopifyPhase.phase === "confirming") {
-                            handleShopifyPush(shopifyPhase.title, shopifyPhase.price);
-                          }
-                        }}
-                        className="px-4 py-2 text-sm bg-[#008060] hover:bg-[#006e52] text-white rounded-lg font-medium transition-colors"
-                      >
-                        ✓ Confirm Push
-                      </button>
-                    </div>
+                    ) : shopifyPhase.phase === "editing" ? (
+                      <div className="flex flex-col gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Product Title</label>
+                          <input
+                            type="text"
+                            value={shopifyPhase.title}
+                            onChange={(e) => setShopifyPhase({ phase: "editing", title: e.target.value, price: (shopifyPhase as { phase: "editing"; title: string; price: string }).price })}
+                            className={inputCls}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Price (AUD)</label>
+                          <input
+                            type="text"
+                            value={shopifyPhase.price}
+                            onChange={(e) => setShopifyPhase({ phase: "editing", title: (shopifyPhase as { phase: "editing"; title: string; price: string }).title, price: e.target.value })}
+                            placeholder="49.99"
+                            className={`${inputCls} font-mono`}
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setShopifyPhase({ phase: "idle" })}
+                            className="px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (shopifyPhase.phase === "editing") {
+                                setShopifyPhase({ phase: "confirming", title: shopifyPhase.title, price: shopifyPhase.price });
+                              }
+                            }}
+                            disabled={!shopifyPhase.title.trim() || !shopifyPhase.price.trim()}
+                            className="px-4 py-2 text-sm bg-[#008060] hover:bg-[#006e52] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Review →
+                          </button>
+                        </div>
+                      </div>
+                    ) : shopifyPhase.phase === "confirming" ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 flex flex-col gap-1.5">
+                          <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Confirm push</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-200">
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Title</span>{" "}
+                            <span className="font-medium">{shopifyPhase.title}</span>
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-200">
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Price</span>{" "}
+                            <span className="font-semibold text-[#008060]">${shopifyPhase.price} AUD</span>
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-200">
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Status</span>{" "}
+                            <span className="font-medium">Draft</span>
+                          </p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (shopifyPhase.phase === "confirming") {
+                                setShopifyPhase({ phase: "editing", title: shopifyPhase.title, price: shopifyPhase.price });
+                              }
+                            }}
+                            className="px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            ← Back
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (shopifyPhase.phase === "confirming") {
+                                handleShopifyPush(shopifyPhase.title, shopifyPhase.price);
+                              }
+                            }}
+                            className="px-4 py-2 text-sm bg-[#008060] hover:bg-[#006e52] text-white rounded-lg font-medium transition-colors"
+                          >
+                            ✓ Confirm Push
+                          </button>
+                        </div>
+                      </div>
+                    ) : shopifyPhase.phase === "pushing" ? (
+                      <div className="flex items-center gap-2.5 text-sm text-gray-500 dark:text-gray-400">
+                        <span className="w-4 h-4 border-2 border-[#008060] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                        Creating draft product…
+                      </div>
+                    ) : shopifyPhase.phase === "done" ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-[#008060] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">✓</span>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Draft product created!</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <a
+                            href={shopifyPhase.productUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm px-4 py-2 bg-[#008060] hover:bg-[#006e52] text-white rounded-lg font-medium transition-colors"
+                          >
+                            View in Shopify Admin ↗
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => setShopifyPhase({ phase: "editing", title: appState.data.productName, price: extractPrice(appState.data.price) })}
+                            className="text-sm px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            Push again
+                          </button>
+                        </div>
+                      </div>
+                    ) : shopifyPhase.phase === "error" ? (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-sm text-red-600 dark:text-red-400">{shopifyPhase.message}</p>
+                        <button
+                          type="button"
+                          onClick={() => setShopifyPhase({ phase: "idle" })}
+                          className="self-start text-sm px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          Try again
+                        </button>
+                      </div>
+                    ) : null}
                   </div>
-                ) : shopifyPhase.phase === "pushing" ? (
-                  <div className="flex items-center gap-2.5 text-sm text-gray-500 dark:text-gray-400">
-                    <span className="w-4 h-4 border-2 border-[#008060] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                    Creating draft product…
-                  </div>
-                ) : shopifyPhase.phase === "done" ? (
-                  <div className="flex flex-col gap-3">
+                </div>
+              </>
+            )}
+
+            {/* ── eBay output ── */}
+            {activeTab === "ebay" && (
+              <>
+                {/* eBay Title */}
+                <div className={card}>
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-800">
                     <div className="flex items-center gap-2">
-                      <span className="w-5 h-5 rounded-full bg-[#008060] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">✓</span>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Draft product created!</p>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">eBay Title</p>
+                      {appState.data.ebayTitle && (
+                        <span className={`text-xs px-1.5 py-0.5 rounded font-mono tabular-nums ${
+                          appState.data.ebayTitle.length > 80
+                            ? "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400"
+                            : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+                        }`}>
+                          {appState.data.ebayTitle.length}/80
+                        </span>
+                      )}
                     </div>
-                    <div className="flex gap-2">
-                      <a
-                        href={shopifyPhase.productUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-sm px-4 py-2 bg-[#008060] hover:bg-[#006e52] text-white rounded-lg font-medium transition-colors"
-                      >
-                        View in Shopify Admin ↗
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => setShopifyPhase({ phase: "editing", title: appState.data.productName, price: extractPrice(appState.data.price) })}
-                        className="text-sm px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                      >
-                        Push again
-                      </button>
+                    <CopyButton text={appState.data.ebayTitle ?? ""} />
+                  </div>
+                  <p className="px-5 py-4 text-sm font-medium text-gray-900 dark:text-gray-100 leading-snug break-words">
+                    {appState.data.ebayTitle ?? appState.data.productName}
+                  </p>
+                </div>
+
+                {/* eBay Description HTML */}
+                <div className={card}>
+                  <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">eBay Description HTML</p>
+                    <CopyButton text={appState.data.html} />
+                  </div>
+                  <pre className="text-xs bg-gray-950 text-gray-300 p-5 rounded-b-xl overflow-x-auto whitespace-pre-wrap font-mono leading-relaxed">
+                    <code>{appState.data.html}</code>
+                  </pre>
+                </div>
+
+                {/* eBay Details */}
+                <div className={`${card} px-5 py-4 flex flex-col gap-3`}>
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Details</p>
+                    <CopyButton text={buildEbayCopyPack(appState.data)} label="Copy all" />
+                  </div>
+
+                  {/* Condition */}
+                  <div>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Condition</p>
+                    <p className="text-sm font-medium text-gray-800 dark:text-gray-200">{appState.data.ebayCondition ?? "New"}</p>
+                  </div>
+
+                  {/* Item Specifics */}
+                  {appState.data.ebayItemSpecifics && Object.keys(appState.data.ebayItemSpecifics).length > 0 && (
+                    <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mb-2">Item Specifics</p>
+                      <div className="flex flex-col gap-1.5">
+                        {Object.entries(appState.data.ebayItemSpecifics).map(([key, value]) => (
+                          <div key={key} className="flex gap-2 text-xs">
+                            <span className="text-gray-400 dark:text-gray-500 shrink-0 w-32 truncate">{key}</span>
+                            <span className="text-gray-700 dark:text-gray-300 flex-1 break-words">{value}</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
+                  )}
+
+                  {/* Price */}
+                  <div className="pt-3 border-t border-gray-100 dark:border-gray-800">
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">Suggested price</p>
+                    <p className="text-sm font-semibold text-[#008060]">{appState.data.price}</p>
                   </div>
-                ) : shopifyPhase.phase === "error" ? (
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm text-red-600 dark:text-red-400">{shopifyPhase.message}</p>
-                    <button
-                      type="button"
-                      onClick={() => setShopifyPhase({ phase: "idle" })}
-                      className="self-start text-sm px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                    >
-                      Try again
-                    </button>
+
+                  {/* Alt text */}
+                  <div className="flex items-start justify-between gap-4 pt-3 border-t border-gray-100 dark:border-gray-800">
+                    <div className="min-w-0">
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mb-0.5">
+                        Alt text{" "}
+                        <span className="tabular-nums">({appState.data.altText.length}/125)</span>
+                      </p>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 break-words">{appState.data.altText}</p>
+                    </div>
+                    <CopyButton text={appState.data.altText} />
                   </div>
-                ) : null}
-              </div>
-            </div>
+                </div>
+              </>
+            )}
 
             <button
               type="button"
