@@ -25,6 +25,14 @@ type ShopifyPhase =
   | { phase: "done"; productUrl: string }
   | { phase: "error"; message: string };
 
+type EbayPhase =
+  | { phase: "idle" }
+  | { phase: "editing"; categoryId: string; price: string }
+  | { phase: "confirming"; categoryId: string; price: string }
+  | { phase: "pushing" }
+  | { phase: "done"; itemId: string; listingUrl: string }
+  | { phase: "error"; message: string };
+
 function extractPrice(priceStr: string): string {
   const match = priceStr.match(/\$(\d+(?:\.\d+)?)/);
   return match ? match[1] : "";
@@ -231,6 +239,7 @@ const AI_PROVIDER_STORAGE = "ai_provider";
 const DARK_MODE_STORAGE = "dark_mode";
 const SHOPIFY_DOMAIN_STORAGE = "shopify_store_domain";
 const SHOPIFY_TOKEN_STORAGE = "shopify_admin_token";
+const EBAY_TOKEN_STORAGE = "ebay_user_token";
 
 function EyeIcon({ open }: { open: boolean }) {
   return open ? (
@@ -277,6 +286,9 @@ export default function Home() {
   const [shopifyDomain, setShopifyDomain] = useState("");
   const [shopifyToken, setShopifyToken] = useState("");
   const [shopifyPhase, setShopifyPhase] = useState<ShopifyPhase>({ phase: "idle" });
+  const [ebayToken, setEbayToken] = useState("");
+  const [showEbayToken, setShowEbayToken] = useState(false);
+  const [ebayPhase, setEbayPhase] = useState<EbayPhase>({ phase: "idle" });
   const [tavilyUsage, setTavilyUsage] = useState<{ used: number; limit: number } | null>(null);
   const [tavilyUsageLoading, setTavilyUsageLoading] = useState(false);
   const [demoMode, setDemoMode] = useState(false);
@@ -289,6 +301,7 @@ export default function Home() {
   const [tavilyOpen, setTavilyOpen] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [shopifyOpen, setShopifyOpen] = useState(false);
+  const [ebayOpen, setEbayOpen] = useState(false);
   const [productImage, setProductImage] = useState<{ base64: string; dataUrl: string; width: number; height: number } | null>(null);
   const stepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const urlInputRef = useRef<HTMLInputElement>(null);
@@ -305,6 +318,7 @@ export default function Home() {
     setDarkMode(savedDark);
     setShopifyDomain(localStorage.getItem(SHOPIFY_DOMAIN_STORAGE) ?? "");
     setShopifyToken(localStorage.getItem(SHOPIFY_TOKEN_STORAGE) ?? "");
+    setEbayToken(localStorage.getItem(EBAY_TOKEN_STORAGE) ?? "");
     async function checkOllama() {
       try {
         const res = await fetch("/api/ollama-status");
@@ -352,6 +366,7 @@ export default function Home() {
     setActiveTab(tab);
     setAppState({ phase: "idle" });
     setShopifyPhase({ phase: "idle" });
+    setEbayPhase({ phase: "idle" });
     setDemoMode(false);
   }
 
@@ -395,6 +410,7 @@ export default function Home() {
     clearStepTimer();
     setAppState({ phase: "loading", stepIndex: 0 });
     setShopifyPhase({ phase: "idle" });
+    setEbayPhase({ phase: "idle" });
     setDemoMode(false);
     let currentStep = 0;
     stepTimerRef.current = setInterval(() => {
@@ -478,6 +494,8 @@ export default function Home() {
             });
             if (platform === "shopify") {
               setShopifyPhase({ phase: "editing", title: productName, price: extractPrice(msg.price as string) });
+            } else {
+              setEbayPhase({ phase: "editing", categoryId: "", price: extractPrice(msg.price as string) });
             }
           } else if (msg.type === "error") {
             setAppState({ phase: "error", data: { error: msg.error as string, errorCode: msg.errorCode as string } });
@@ -521,6 +539,38 @@ export default function Home() {
       }
     } catch {
       setShopifyPhase({ phase: "error", message: "Network error — could not reach the server." });
+    }
+  }
+
+  async function handleEbayPush(categoryId: string, price: string) {
+    if (appState.phase !== "success") return;
+    if (demoMode) {
+      setEbayPhase({ phase: "error", message: "Demo mode — add your eBay credentials in Settings to push real listings." });
+      return;
+    }
+    setEbayPhase({ phase: "pushing" });
+    try {
+      const res = await fetch("/api/ebay", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userToken: ebayToken,
+          title: appState.data.ebayTitle ?? appState.data.productName,
+          descriptionHtml: appState.data.html,
+          price,
+          categoryId,
+          condition: appState.data.ebayCondition ?? "New",
+          itemSpecifics: appState.data.ebayItemSpecifics,
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setEbayPhase({ phase: "error", message: json.error ?? "Unknown error" });
+      } else {
+        setEbayPhase({ phase: "done", itemId: json.itemId, listingUrl: json.listingUrl });
+      }
+    } catch {
+      setEbayPhase({ phase: "error", message: "Network error — could not reach the server." });
     }
   }
 
@@ -849,6 +899,56 @@ export default function Home() {
                 </div>
               )}
 
+              {/* ── eBay ── */}
+              {activeTab === "ebay" && (
+                <div>
+                  <button
+                    type="button"
+                    onClick={() => setEbayOpen((v) => !v)}
+                    className="w-full flex items-center justify-between px-5 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-gray-700 dark:text-gray-200">eBay</span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                        ebayToken
+                          ? "bg-emerald-50 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400"
+                          : "bg-gray-100 dark:bg-gray-800 text-gray-400"
+                      }`}>
+                        {ebayToken ? "eBay ✓" : "Not set"}
+                      </span>
+                    </div>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className={`text-gray-400 transition-transform duration-200 ${ebayOpen ? "rotate-180" : ""}`}>
+                      <path d="M6 9l6 6 6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                  </button>
+                  {ebayOpen && (
+                    <div className="px-5 pb-4 flex flex-col gap-2">
+                      <p className="text-xs text-gray-400 dark:text-gray-500">
+                        Paste your eBay Trading API User Token. App credentials (EBAY_APP_ID, EBAY_DEV_ID, EBAY_CERT_ID) must be set in <code className="font-mono">.env</code> first —{" "}
+                        <a href="https://developer.ebay.com" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline">eBay Developer Programme</a>.
+                      </p>
+                      <label htmlFor="ebayToken" className="text-xs font-medium text-gray-500 dark:text-gray-400 mt-1">
+                        User Token
+                      </label>
+                      <div className="relative">
+                        <input
+                          id="ebayToken"
+                          type={showEbayToken ? "text" : "password"}
+                          value={ebayToken}
+                          onChange={(e) => { setEbayToken(e.target.value); localStorage.setItem(EBAY_TOKEN_STORAGE, e.target.value); }}
+                          placeholder="AgAAAA..."
+                          className={`${inputCls} font-mono pr-9`}
+                        />
+                        <button type="button" onClick={() => setShowEbayToken((v) => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                          <EyeIcon open={showEbayToken} />
+                        </button>
+                      </div>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Saved in your browser only — never sent anywhere except eBay.</p>
+                    </div>
+                  )}
+                </div>
+              )}
+
             </div>
           )}
         </div>
@@ -990,6 +1090,8 @@ export default function Home() {
                 setDemoMode(true);
                 if (activeTab === "shopify") {
                   setShopifyPhase({ phase: "editing", title: demoData.productName, price: extractPrice(demoData.price) });
+                } else {
+                  setEbayPhase({ phase: "editing", categoryId: "", price: extractPrice(demoData.price) });
                 }
                 setAppState({ phase: "success", data: demoData });
               }
@@ -1359,6 +1461,169 @@ export default function Home() {
                     <CopyButton text={appState.data.altText} />
                   </div>
                 </div>
+
+                {/* Push to eBay panel */}
+                <div className={card}>
+                  <div className="flex items-center gap-2.5 px-5 py-3 border-b border-gray-100 dark:border-gray-800">
+                    <div className="w-4 h-4 rounded-md bg-[#e53238] flex items-center justify-center flex-shrink-0">
+                      <EbayTagIcon size={9} stroke="white" />
+                    </div>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">Push to eBay</p>
+                  </div>
+                  <div className="p-5">
+                    {!demoMode && !ebayToken ? (
+                      <p className="text-sm text-gray-400 dark:text-gray-500">
+                        Add your eBay User Token in{" "}
+                        <button
+                          type="button"
+                          onClick={() => { setSettingsOpen(true); setEbayOpen(true); }}
+                          className="text-[#008060] hover:underline font-medium"
+                        >
+                          Settings
+                        </button>{" "}
+                        to enable pushing.
+                      </p>
+                    ) : ebayPhase.phase === "editing" ? (
+                      <div className="flex flex-col gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
+                            eBay Category ID{" "}
+                            <a href="https://www.ebay.com.au/sch/allcategories/all-categories" target="_blank" rel="noopener noreferrer" className="text-[#008060] hover:underline font-normal">find yours ↗</a>
+                          </label>
+                          <input
+                            type="text"
+                            inputMode="numeric"
+                            value={ebayPhase.categoryId}
+                            onChange={(e) => setEbayPhase({ phase: "editing", categoryId: e.target.value, price: (ebayPhase as { phase: "editing"; categoryId: string; price: string }).price })}
+                            placeholder="e.g. 9355"
+                            className={`${inputCls} font-mono`}
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">Price (AUD)</label>
+                          <input
+                            type="text"
+                            value={ebayPhase.price}
+                            onChange={(e) => setEbayPhase({ phase: "editing", categoryId: (ebayPhase as { phase: "editing"; categoryId: string; price: string }).categoryId, price: e.target.value })}
+                            placeholder="49.99"
+                            className={`${inputCls} font-mono`}
+                          />
+                        </div>
+                        <div className="flex gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => setEbayPhase({ phase: "idle" })}
+                            className="px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (ebayPhase.phase === "editing") {
+                                setEbayPhase({ phase: "confirming", categoryId: ebayPhase.categoryId, price: ebayPhase.price });
+                              }
+                            }}
+                            disabled={!ebayPhase.categoryId.trim() || !ebayPhase.price.trim()}
+                            className="px-4 py-2 text-sm bg-[#e53238] hover:bg-[#c02a2f] text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            Review →
+                          </button>
+                        </div>
+                      </div>
+                    ) : ebayPhase.phase === "confirming" ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 flex flex-col gap-1.5">
+                          <p className="text-xs font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide mb-1">Confirm listing</p>
+                          <p className="text-sm text-gray-700 dark:text-gray-200">
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Title</span>{" "}
+                            <span className="font-medium">{appState.data.ebayTitle ?? appState.data.productName}</span>
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-200">
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Category ID</span>{" "}
+                            <span className="font-mono font-medium">{ebayPhase.categoryId}</span>
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-200">
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Price</span>{" "}
+                            <span className="font-semibold text-[#008060]">${ebayPhase.price} AUD</span>
+                          </p>
+                          <p className="text-sm text-gray-700 dark:text-gray-200">
+                            <span className="text-gray-400 dark:text-gray-500 text-xs">Condition</span>{" "}
+                            <span className="font-medium">{appState.data.ebayCondition ?? "New"}</span>
+                          </p>
+                          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">This creates a live listing on eBay.com.au immediately.</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (ebayPhase.phase === "confirming") {
+                                setEbayPhase({ phase: "editing", categoryId: ebayPhase.categoryId, price: ebayPhase.price });
+                              }
+                            }}
+                            className="px-4 py-2 text-sm border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            ← Back
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (ebayPhase.phase === "confirming") {
+                                handleEbayPush(ebayPhase.categoryId, ebayPhase.price);
+                              }
+                            }}
+                            className="px-4 py-2 text-sm bg-[#e53238] hover:bg-[#c02a2f] text-white rounded-lg font-medium transition-colors"
+                          >
+                            ✓ List on eBay
+                          </button>
+                        </div>
+                      </div>
+                    ) : ebayPhase.phase === "pushing" ? (
+                      <div className="flex items-center gap-2.5 text-sm text-gray-500 dark:text-gray-400">
+                        <span className="w-4 h-4 border-2 border-[#e53238] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                        Creating listing…
+                      </div>
+                    ) : ebayPhase.phase === "done" ? (
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="w-5 h-5 rounded-full bg-[#e53238] flex items-center justify-center text-white text-xs font-bold flex-shrink-0">✓</span>
+                          <p className="text-sm font-medium text-gray-900 dark:text-gray-100">Listing created! Item #{ebayPhase.itemId}</p>
+                        </div>
+                        <div className="flex gap-2">
+                          <a
+                            href={ebayPhase.listingUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-sm px-4 py-2 bg-[#e53238] hover:bg-[#c02a2f] text-white rounded-lg font-medium transition-colors"
+                          >
+                            View on eBay ↗
+                          </a>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const price = extractPrice(appState.data.price);
+                              setEbayPhase({ phase: "editing", categoryId: "", price });
+                            }}
+                            className="text-sm px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                          >
+                            List again
+                          </button>
+                        </div>
+                      </div>
+                    ) : ebayPhase.phase === "error" ? (
+                      <div className="flex flex-col gap-2">
+                        <p className="text-sm text-red-600 dark:text-red-400">{ebayPhase.message}</p>
+                        <button
+                          type="button"
+                          onClick={() => setEbayPhase({ phase: "idle" })}
+                          className="self-start text-sm px-4 py-2 border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+                        >
+                          Try again
+                        </button>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               </>
             )}
 
@@ -1366,6 +1631,8 @@ export default function Home() {
               type="button"
               onClick={() => {
                 setAppState({ phase: "idle" });
+                setShopifyPhase({ phase: "idle" });
+                setEbayPhase({ phase: "idle" });
                 setBarcode("");
                 setManualUrl("");
                 setManualHtml("");
