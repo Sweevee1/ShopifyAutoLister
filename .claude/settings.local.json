@@ -76,7 +76,8 @@
       "Bash(grep -rn \"//\" \"A:\\\\Coding\\\\ShopifyAutoLister/src/app/page.tsx\")",
       "Bash(grep -E \"^\\\\s*//|^\\\\s*/\\\\*\")",
       "Bash(gh release *)",
-      "Bash(Get-Content \"C:\\\\Users\\\\lukes\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-lukes-Documents-Coding-ShopifyAutoLister\\\\094d8d0e-cde6-4738-b7a8-863c5c8748bf\\\\tasks\\\\bpxkoamwd.output\")"
+      "Bash(Get-Content \"C:\\\\Users\\\\lukes\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-lukes-Documents-Coding-ShopifyAutoLister\\\\094d8d0e-cde6-4738-b7a8-863c5c8748bf\\\\tasks\\\\bpxkoamwd.output\")",
+      "Bash(Start-Process \"http://localhost:3000\")"
     ]
   }
 }
