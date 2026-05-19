@@ -77,7 +77,11 @@
       "Bash(grep -E \"^\\\\s*//|^\\\\s*/\\\\*\")",
       "Bash(gh release *)",
       "Bash(Get-Content \"C:\\\\Users\\\\lukes\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\C--Users-lukes-Documents-Coding-ShopifyAutoLister\\\\094d8d0e-cde6-4738-b7a8-863c5c8748bf\\\\tasks\\\\bpxkoamwd.output\")",
-      "Bash(Start-Process \"http://localhost:3000\")"
+      "Bash(Start-Process \"http://localhost:3000\")",
+      "Bash(Get-ChildItem -Path \"A:\\\\Coding\\\\ShopifyAutoLister\" -Recurse -File)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Sort-Object)",
+      "Bash(robocopy \"A:\\\\Coding\\\\ShopifyAutoLister\" \"A:\\\\Coding\\\\ShopifyListerPro\" /E /XD node_modules .git .next /XF \"*.log\")"
     ]
   }
 }
