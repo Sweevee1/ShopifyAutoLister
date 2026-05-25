@@ -81,7 +81,11 @@
       "Bash(Get-ChildItem -Path \"A:\\\\Coding\\\\ShopifyAutoLister\" -Recurse -File)",
       "Bash(Select-Object -ExpandProperty FullName)",
       "Bash(Sort-Object)",
-      "Bash(robocopy \"A:\\\\Coding\\\\ShopifyAutoLister\" \"A:\\\\Coding\\\\ShopifyListerPro\" /E /XD node_modules .git .next /XF \"*.log\")"
+      "Bash(robocopy \"A:\\\\Coding\\\\ShopifyAutoLister\" \"A:\\\\Coding\\\\ShopifyListerPro\" /E /XD node_modules .git .next /XF \"*.log\")",
+      "Bash(Start-Sleep -Seconds 5)",
+      "Bash(Invoke-WebRequest -Uri \"http://localhost:3000\" -UseBasicParsing -TimeoutSec 10)",
+      "Bash(Select-Object -ExpandProperty StatusCode)",
+      "Bash(start *)"
     ]
   }
 }
